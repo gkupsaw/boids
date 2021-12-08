@@ -1,3 +1,4 @@
 export interface GameObject {
-    render: (elapsed: number, tick: number, prevElapsed: number, prevTick: number) => void;
+    update: (elapsed: number, tick: number, prevElapsed: number, prevTick: number) => void;
+    dispose: () => void;
 }

@@ -323,7 +323,7 @@ export class ParticleSystem implements GameObject {
         }
     };
 
-    render = (elapsed: number, tick: number, prevElapsed: number, prevTick: number) => {
+    update = (elapsed: number, tick: number, prevElapsed: number, prevTick: number) => {
         const geometry = this.mesh.geometry;
         const times = this.iattributes[IAttributes.aTime].value;
 

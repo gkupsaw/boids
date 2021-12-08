@@ -1,10 +1,10 @@
 export class EventSystem {
     private paused: boolean;
-    private onPlay: () => void;
+    private onPlayCallback: () => void;
 
-    constructor(render: () => void) {
+    constructor() {
         this.paused = true;
-        this.onPlay = render;
+        this.onPlayCallback = () => {};
 
         this.setupListeners();
     }
@@ -38,8 +38,12 @@ export class EventSystem {
     play = () => {
         if (this.paused) {
             this.paused = false;
-            this.onPlay();
+            this.onPlayCallback();
         }
+    };
+
+    onPlay = (cb: () => void) => {
+        this.onPlayCallback = cb;
     };
 
     dispose = () => {

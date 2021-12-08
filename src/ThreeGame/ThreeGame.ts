@@ -1,20 +1,27 @@
+import { EventSystem } from './../EventSystem/EventSystem';
+import { GameObject } from './../types/GameObject';
 import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color } from 'three';
 
 export class ThreeGame {
+    private esys: EventSystem;
+
     private id: string;
     private disposed: boolean;
 
     private renderer!: WebGLRenderer;
     private scene!: Scene;
     private camera!: OrthographicCamera;
+    private gameObjects: GameObject[];
 
     static readonly CANVAS_ID = 'glCanvas';
     static readonly SKY_COLOR = '#282c34';
 
-    constructor() {
-        this.id = `${Math.floor(Math.random() * 100000)}`;
+    constructor(esys: EventSystem) {
+        this.esys = esys;
 
+        this.id = `${Math.floor(Math.random() * 100000)}`;
         this.disposed = false;
+        this.gameObjects = [];
 
         this.setup();
     }
@@ -70,20 +77,59 @@ export class ThreeGame {
         this.scene.add(this.camera);
     };
 
-    private update = (deltaTime: number) => {};
-
     // API
 
-    render = (elapsed: number, tick: number) => {
-        // Update canvas on window resize
-        if (ThreeGame.resizeRendererToDisplaySize(this.renderer)) {
-            this.camera.updateProjectionMatrix();
+    start = () => {
+        if (!this.esys.isPaused()) {
+            return console.error('Attempted to start game that is already running.');
         }
 
-        this.update(tick);
+        let isRendering = false,
+            prevElapsed = 0,
+            prevTick = 0;
 
-        // Render the scene
-        this.renderer.render(this.scene, this.camera);
+        const render = (elapsed: number) => {
+            if (this.esys.isPaused()) {
+                isRendering = false;
+                prevElapsed = 0;
+                return;
+            }
+
+            // Convert to seconds
+            elapsed /= 1000;
+
+            const tick = elapsed - prevElapsed;
+
+            // Update canvas on window resize
+            if (ThreeGame.resizeRendererToDisplaySize(this.renderer)) {
+                this.camera.updateProjectionMatrix();
+            }
+
+            // Update game objects
+            this.gameObjects.forEach((o) => o.update(elapsed, tick, prevElapsed, prevTick));
+
+            // Render the scene
+            this.renderer.render(this.scene, this.camera);
+
+            // Track previous values
+            prevElapsed = elapsed;
+            prevTick = tick;
+
+            requestAnimationFrame(render);
+        };
+
+        this.esys.onPlay(() => {
+            if (isRendering) {
+                throw new Error('Attempted to initiate multiple render loops.');
+            }
+            isRendering = true;
+            requestAnimationFrame(render);
+        });
+        this.esys.play();
+    };
+
+    addGameObject = (o: GameObject) => {
+        this.gameObjects.push(o);
     };
 
     getScene = () => {
@@ -106,5 +152,8 @@ export class ThreeGame {
         if (this.scene) {
             this.scene.clear();
         }
+
+        this.gameObjects.forEach((o) => o.dispose());
+        this.esys.dispose();
     };
 }
