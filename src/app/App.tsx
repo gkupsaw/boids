@@ -55,7 +55,7 @@ class App extends React.Component implements AppProps {
             prevElapsed = elapsed;
             prevTick = tick;
 
-            requestAnimationFrame((time) => render(time));
+            requestAnimationFrame(render);
         };
 
         const play = () => {
@@ -73,7 +73,7 @@ class App extends React.Component implements AppProps {
     render() {
         return (
             <div className='App' style={{ backgroundColor: ThreeGame.SKY_COLOR }}>
-                <canvas id={ThreeGame.CANVAS_ID} width={800} height={800} className='gl-canvas' />
+                <canvas id={ThreeGame.CANVAS_ID} width={1800} height={1200} className='gl-canvas' />
             </div>
         );
     }

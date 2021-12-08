@@ -3,12 +3,12 @@ import { Vector3 } from 'three';
 export const Shaders = () => ({
     default: {
         uniforms: {},
-        frag: `
-        `,
-        vert: `
-        `,
-        // frag: /** FRAGSHADERSTART */ './shader.frag.glsl' /** FRAGSHADEREND */,
-        // vert: /** VERTSHADERSTART */ './shader.vert.glsl' /** VERTSHADEREND */,
+        /** FRAGSHADERSTART */
+        frag: './shader.frag.glsl',
+        /** FRAGSHADEREND */
+        /** VERTSHADERSTART */
+        vert: './shader.vert.glsl',
+        /** VERTSHADEREND */
     },
     boids: {
         uniforms: {

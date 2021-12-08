@@ -1,8 +1,6 @@
 import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color } from 'three';
 
-import { Renderable } from '../types';
-
-export class ThreeGame implements Renderable {
+export class ThreeGame {
     private id: string;
     private disposed: boolean;
 
