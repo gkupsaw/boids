@@ -91,13 +91,18 @@ export class ThreeGame {
         const render = (elapsed: number) => {
             if (this.esys.isPaused()) {
                 isRendering = false;
-                prevElapsed = 0;
                 return;
             }
-
             // Convert to seconds
             elapsed /= 1000;
 
+            // Skip large gaps between renders
+            if (elapsed - prevElapsed > 1e-1) {
+                prevElapsed = elapsed;
+                return requestAnimationFrame(render);
+            }
+
+            // Calculate delta time
             const tick = elapsed - prevElapsed;
 
             // Update canvas on window resize
