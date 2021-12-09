@@ -2,14 +2,14 @@ import React from 'react';
 import './App.css';
 
 import { ThreeGame } from '../ThreeGame/ThreeGame';
-import { ParticleSystem } from '../ParticleSystem/ParticleSystem';
 import { EventSystem } from '../EventSystem/EventSystem';
+import { BoidSystem } from '../BoidSystem/BoidSystem';
 
 type AppProps = {};
 
 class App extends React.Component implements AppProps {
     game: ThreeGame | null;
-    psys: ParticleSystem | null;
+    psys: BoidSystem | null;
     esys: EventSystem | null;
 
     constructor(props: AppProps) {
@@ -23,7 +23,7 @@ class App extends React.Component implements AppProps {
     componentDidMount = () => {
         this.game = new ThreeGame(new EventSystem());
 
-        this.game.addGameObject(new ParticleSystem(this.game.getScene()));
+        this.game.addGameObject(new BoidSystem(this.game.getScene()));
 
         this.startGame();
     };

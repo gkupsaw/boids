@@ -16,7 +16,7 @@ import { Shaders } from '../gl/shaders';
 const DIMENSIONS = 2;
 const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-type ParticleSystemOptions = {
+export type ParticleSystemOptions = {
     size?: number;
     count?: number;
     particleSize?: number;
@@ -45,11 +45,9 @@ export class ParticleSystem implements GameObject {
     private particleSize: number;
     private speed: number;
 
-    private lowerBoundary: number;
-    private upperBoundary: number;
     private shader: { uniforms: { [uniformName: string]: any }; vert: string; frag: string };
-    private attributes: { [key in Attributes]: Attribute };
-    private iattributes: { [key in IAttributes]: Attribute };
+    private attributes!: { [key in Attributes]: Attribute };
+    private iattributes!: { [key in IAttributes]: Attribute };
     private mesh: Mesh;
 
     constructor(scene: Scene, { size = 2, count = 500, particleSize = 0.04, speed = 0.3 }: ParticleSystemOptions = {}) {
@@ -61,8 +59,6 @@ export class ParticleSystem implements GameObject {
         this.count = count;
         this.particleSize = particleSize;
         this.speed = speed;
-        this.lowerBoundary = -(this.size / 2 - this.particleSize / 2);
-        this.upperBoundary = this.size / 2 - this.particleSize / 2;
 
         const shaders = Shaders();
         this.shader = shaders.boids;
@@ -70,6 +66,21 @@ export class ParticleSystem implements GameObject {
 
         const geometry = new InstancedBufferGeometry();
 
+        this.setupAttributes(geometry);
+        this.setupInstancedAttributes(geometry);
+
+        const material = new ShaderMaterial({
+            uniforms: shaders.boids.uniforms,
+            vertexShader: shaders.boids.vert,
+            fragmentShader: shaders.boids.frag,
+        });
+
+        this.mesh = new Mesh(geometry, material);
+
+        scene.add(this.mesh);
+    }
+
+    private setupAttributes = (geometry: InstancedBufferGeometry) => {
         this.attributes = {
             [Attributes.position]: {
                 count: 3,
@@ -85,7 +96,9 @@ export class ParticleSystem implements GameObject {
             const { count, value } = this.attributes[attributeName as Attributes];
             geometry.setAttribute(attributeName, new BufferAttribute(value, count));
         }
+    };
 
+    private setupInstancedAttributes = (geometry: InstancedBufferGeometry) => {
         this.iattributes = {
             [IAttributes.aPindex]: {
                 count: 1,
@@ -128,22 +141,9 @@ export class ParticleSystem implements GameObject {
             const { count, value } = this.iattributes[iattributeName as IAttributes];
             geometry.setAttribute(iattributeName, new InstancedBufferAttribute(value, count, false));
         }
+    };
 
-        // particle material
-        const material = new ShaderMaterial({
-            uniforms: shaders.boids.uniforms,
-            vertexShader: shaders.boids.vert,
-            fragmentShader: shaders.boids.frag,
-        });
-
-        const mesh = new Mesh(geometry, material);
-
-        scene.add(mesh);
-
-        this.mesh = mesh;
-    }
-
-    outOfBounds = (pIndex: number) => {
+    private outOfBounds = (pIndex: number) => {
         const dimIndex = pIndex * 3;
         const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
         const velocities = this.iattributes[IAttributes.aVelocity].value;
@@ -166,6 +166,40 @@ export class ParticleSystem implements GameObject {
 
         return new Vector3(...n);
     };
+
+    private bounceOffWall = (pIndex: number, normal: Vector3, prevTick: number) => {
+        const dimIndex = pIndex * 3;
+        const velocities = this.iattributes[IAttributes.aVelocity].value;
+
+        const vi = new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]);
+        const vf = vi.clone().sub(normal.clone().multiplyScalar(2 * normal.clone().dot(vi)));
+
+        this.resetParticle(pIndex, prevTick, vf);
+    };
+
+    get lowerBoundary() {
+        return -(this.size / 2 - this.particleSize / 2);
+    }
+
+    get upperBoundary() {
+        return this.size / 2 - this.particleSize / 2;
+    }
+
+    getSize = () => this.size;
+
+    getCount = () => this.count;
+
+    getParticleSize = () => this.particleSize;
+
+    getSpeed = () => this.speed;
+
+    getAttributes = () => this.attributes;
+
+    getIAttributes = () => this.iattributes;
+
+    getShader = () => this.shader;
+
+    getMesh = () => this.mesh;
 
     resetParticle = (pIndex: number, prevTick: number, vf: Vector3) => {
         const dimIndex = pIndex * 3;
@@ -198,131 +232,7 @@ export class ParticleSystem implements GameObject {
         geometry.attributes.aTime.needsUpdate = true;
     };
 
-    bounceOffWall = (pIndex: number, normal: Vector3, prevTick: number) => {
-        const dimIndex = pIndex * 3;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-
-        const vi = new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]);
-        const vf = vi.clone().sub(normal.clone().multiplyScalar(2 * normal.clone().dot(vi)));
-
-        this.resetParticle(pIndex, prevTick, vf);
-    };
-
-    separateFromNeighbors = (pIndex: number) => {
-        const dimIndex = pIndex * 3;
-        const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-        const p = new Vector3(
-            initialPositions[dimIndex],
-            initialPositions[dimIndex + 1],
-            initialPositions[dimIndex + 2]
-        );
-
-        const vAdjustment = new Vector3();
-        const awareness = 1.5 * this.particleSize;
-        const sensitivity = 80;
-        for (let i = 0; i < this.count; i++) {
-            if (i !== pIndex) {
-                const pi = new Vector3(
-                    initialPositions[i * 3],
-                    initialPositions[i * 3 + 1],
-                    initialPositions[i * 3 + 2]
-                );
-                const d = p.distanceToSquared(pi);
-
-                if (d < awareness) {
-                    const avoidanceDir = p.clone().sub(pi).normalize();
-                    vAdjustment.add(avoidanceDir.multiplyScalar(awareness / (d * sensitivity)));
-                }
-            }
-        }
-
-        if (vAdjustment.lengthSq() > 0) {
-            vAdjustment
-                .add(new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]))
-                .normalize()
-                .multiplyScalar(this.speed);
-
-            this.resetParticle(pIndex, 0, vAdjustment);
-        }
-    };
-
-    alignWithNeighbors = (pIndex: number) => {
-        const dimIndex = pIndex * 3;
-        const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-        const p = new Vector3(
-            initialPositions[dimIndex],
-            initialPositions[dimIndex + 1],
-            initialPositions[dimIndex + 2]
-        );
-
-        const vAdjustment = new Vector3();
-        const awareness = 1.5 * this.particleSize;
-        const sensitivity = 80;
-        let n = 0;
-        for (let i = 0; i < this.count; i++) {
-            if (i !== pIndex) {
-                const pi = new Vector3(
-                    initialPositions[i * 3],
-                    initialPositions[i * 3 + 1],
-                    initialPositions[i * 3 + 2]
-                );
-                const d = p.distanceToSquared(pi);
-
-                if (d < awareness) {
-                    n++;
-                    vAdjustment.add(
-                        new Vector3(velocities[i * 3], velocities[i * 3 + 1], velocities[i * 3 + 2]).multiplyScalar(
-                            awareness / (d * sensitivity)
-                        )
-                    );
-                }
-            }
-        }
-
-        if (n > 0) {
-            vAdjustment
-                .add(new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]))
-                .divideScalar(n + 1)
-                .normalize()
-                .multiplyScalar(this.speed);
-
-            this.resetParticle(pIndex, 0, vAdjustment);
-        }
-    };
-
-    avoidWalls = (pIndex: number) => {
-        const dimIndex = pIndex * 3;
-        const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-        const times = this.iattributes[IAttributes.aTime].value;
-
-        const time = times[pIndex];
-
-        const awareness = 1.5 * this.particleSize;
-        const sensitivity = 2;
-        const w = [0, 0, 0];
-        for (let i = 0; i < DIMENSIONS; i++) {
-            const vi = velocities[dimIndex + i];
-            const pf = initialPositions[dimIndex + i] + vi * time;
-
-            if (pf <= this.lowerBoundary + awareness) {
-                w[i] += (sensitivity * awareness) / Math.abs(pf);
-            } else if (pf >= this.upperBoundary - awareness) {
-                w[i] -= (sensitivity * awareness) / Math.abs(pf);
-            }
-        }
-
-        const v = new Vector3(...w);
-        if (v.lengthSq() > 0) {
-            v.add(new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]))
-                .normalize()
-                .multiplyScalar(this.speed);
-            this.resetParticle(pIndex, 0, v);
-        }
-    };
-
+    // Basic update for funsies
     update = (elapsed: number, tick: number, prevElapsed: number, prevTick: number) => {
         const geometry = this.mesh.geometry;
         const times = this.iattributes[IAttributes.aTime].value;
@@ -330,14 +240,10 @@ export class ParticleSystem implements GameObject {
         this.shader.uniforms.uTime.value = elapsed;
 
         for (let i = 0; i < this.count; i++) {
-            this.avoidWalls(i);
-            this.separateFromNeighbors(i);
-            this.alignWithNeighbors(i);
-
-            // const hitNormal = this.outOfBounds(i);
-            // if (hitNormal.lengthSq() > 0) {
-            //     this.bounceOffWall(i, hitNormal, prevTick);
-            // }
+            const hitNormal = this.outOfBounds(i);
+            if (hitNormal.lengthSq() > 0) {
+                this.bounceOffWall(i, hitNormal, prevTick);
+            }
 
             times[i] += tick;
         }
@@ -348,9 +254,5 @@ export class ParticleSystem implements GameObject {
     dispose = () => {
         this.mesh.geometry.dispose();
         (this.mesh.material as Material).dispose();
-    };
-
-    debug = () => {
-        this.mesh.parent?.add(new AxesHelper(1));
     };
 }

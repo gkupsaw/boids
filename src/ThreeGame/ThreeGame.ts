@@ -1,6 +1,6 @@
 import { EventSystem } from './../EventSystem/EventSystem';
 import { GameObject } from './../types/GameObject';
-import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color } from 'three';
+import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper } from 'three';
 
 export class ThreeGame {
     private esys: EventSystem;
@@ -81,7 +81,7 @@ export class ThreeGame {
 
     start = () => {
         if (!this.esys.isPaused()) {
-            return console.error('Attempted to start game that is already running.');
+            throw new Error('Attempted to start game that is already running.');
         }
 
         let isRendering = false,
@@ -160,5 +160,9 @@ export class ThreeGame {
 
         this.gameObjects.forEach((o) => o.dispose());
         this.esys.dispose();
+    };
+
+    debug = () => {
+        this.scene.add(new AxesHelper(1));
     };
 }
