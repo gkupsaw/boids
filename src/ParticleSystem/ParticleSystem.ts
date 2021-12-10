@@ -1,5 +1,4 @@
 import {
-    AxesHelper,
     BufferAttribute,
     InstancedBufferAttribute,
     InstancedBufferGeometry,
@@ -118,15 +117,18 @@ export class ParticleSystem implements GameObject {
             },
         };
 
+        const b = true;
         for (let i = 0; i < this.count; i++) {
-            this.iattributes[IAttributes.aInitialPosition].value[i * 3 + 0] = randInRange(
-                this.lowerBoundary,
-                this.upperBoundary
-            );
-            this.iattributes[IAttributes.aInitialPosition].value[i * 3 + 1] = randInRange(
-                this.lowerBoundary,
-                this.upperBoundary
-            );
+            this.iattributes[IAttributes.aInitialPosition].value[i * 3 + 0] = b
+                ? randInRange(this.lowerBoundary, this.upperBoundary)
+                : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
+            // : (Math.floor(randInRange(0, 2)) === 0 ? 1 : -1) *
+            //   randInRange(this.upperBoundary * 0.5, this.upperBoundary);
+            this.iattributes[IAttributes.aInitialPosition].value[i * 3 + 1] = b
+                ? randInRange(this.lowerBoundary, this.upperBoundary)
+                : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
+            // : (Math.floor(randInRange(0, 2)) === 0 ? 1 : -1) *
+            //   randInRange(this.upperBoundary * 0.5, this.upperBoundary);
 
             const v = new Vector3(1, 0, 0)
                 .applyAxisAngle(new Vector3(0, 0, 1), Math.random() * 2 * Math.PI)
@@ -174,7 +176,7 @@ export class ParticleSystem implements GameObject {
         const vi = new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]);
         const vf = vi.clone().sub(normal.clone().multiplyScalar(2 * normal.clone().dot(vi)));
 
-        this.resetParticle(pIndex, prevTick, vf);
+        this.setParticleVelocity(pIndex, prevTick, vf);
     };
 
     get lowerBoundary() {
@@ -201,7 +203,26 @@ export class ParticleSystem implements GameObject {
 
     getMesh = () => this.mesh;
 
-    resetParticle = (pIndex: number, prevTick: number, vf: Vector3) => {
+    getParticlePosition = (pIndex: number) => {
+        const dimIndex = pIndex * 3;
+        const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
+        const velocities = this.iattributes[IAttributes.aVelocity].value;
+        const times = this.iattributes[IAttributes.aTime].value;
+
+        return new Vector3(
+            initialPositions[dimIndex] + velocities[dimIndex] * times[pIndex],
+            initialPositions[dimIndex + 1] + velocities[dimIndex + 1] * times[pIndex],
+            initialPositions[dimIndex + 2] + velocities[dimIndex + 2] * times[pIndex]
+        );
+    };
+
+    getParticleVelocity = (pIndex: number) => {
+        const velocities = this.iattributes[IAttributes.aVelocity].value;
+        const dimIndex = pIndex * 3;
+        return new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]);
+    };
+
+    setParticleVelocity = (pIndex: number, prevTick: number, vf: Vector3) => {
         const dimIndex = pIndex * 3;
         const geometry = this.mesh.geometry;
         const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
