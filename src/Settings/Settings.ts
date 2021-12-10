@@ -1,13 +1,23 @@
-export const SETTINGS = {
-    separation: {
+export enum SettingSection {
+    separation = 'separation',
+    alignment = 'alignment',
+    cohesion = 'cohesion',
+}
+
+export type Settings = {
+    [index: string]: { [index: string]: any };
+};
+
+export const SETTINGS: Settings = {
+    [SettingSection.separation]: {
         awarenessFactor: 1,
         sensitivity: 0.0075,
     },
-    alignment: {
+    [SettingSection.alignment]: {
         awarenessFactor: 1,
         sensitivity: 0.75,
     },
-    cohesion: {
+    [SettingSection.cohesion]: {
         awarenessFactor: 1,
         sensitivity: 0.05,
     },

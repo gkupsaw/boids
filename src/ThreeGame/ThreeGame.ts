@@ -1,9 +1,13 @@
+import { GUI } from 'dat.gui';
+
 import { EventSystem } from './../EventSystem/EventSystem';
 import { GameObject } from './../types/GameObject';
 import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper } from 'three';
+import { SETTINGS } from '../Settings/Settings';
 
 export class ThreeGame {
     private esys: EventSystem;
+    private gui!: GUI;
 
     private id: string;
     private disposed: boolean;
@@ -160,9 +164,31 @@ export class ThreeGame {
 
         this.gameObjects.forEach((o) => o.dispose());
         this.esys.dispose();
+        this.gui?.destroy();
     };
 
-    debug = () => {
+    withUI = () => {
+        const gui = new GUI();
+
+        Object.keys(SETTINGS).forEach((section) => {
+            const folder = gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
+            Object.keys(SETTINGS[section]).forEach((setting) => {
+                folder.add(
+                    SETTINGS[section],
+                    setting,
+                    0,
+                    SETTINGS[section][setting] < 0 ? 1 : SETTINGS[section][setting] * 10
+                );
+            });
+            folder.open();
+        });
+
+        return this;
+    };
+
+    withDebug = () => {
         this.scene.add(new AxesHelper(1));
+
+        return this;
     };
 }

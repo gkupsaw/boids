@@ -21,7 +21,7 @@ class App extends React.Component implements AppProps {
     }
 
     componentDidMount = () => {
-        this.game = new ThreeGame(new EventSystem());
+        this.game = new ThreeGame(new EventSystem()).withUI();
 
         this.game.addGameObject(new BoidSystem(this.game.getScene()));
 
