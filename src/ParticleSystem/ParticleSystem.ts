@@ -12,7 +12,6 @@ import {
 import { GameObject } from '../types/GameObject';
 import { Shaders } from '../gl/shaders';
 
-const DIMENSIONS = 2;
 const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
 export type ParticleSystemOptions = {
@@ -33,9 +32,8 @@ enum Attributes {
 
 enum IAttributes {
     aPindex = 'aPindex',
-    aInitialPosition = 'aInitialPosition',
+    aPosition = 'aPosition',
     aVelocity = 'aVelocity',
-    aTime = 'aTime',
 }
 
 export class ParticleSystem implements GameObject {
@@ -103,7 +101,7 @@ export class ParticleSystem implements GameObject {
                 count: 1,
                 value: new Uint16Array(this.count),
             },
-            [IAttributes.aInitialPosition]: {
+            [IAttributes.aPosition]: {
                 count: 3,
                 value: new Float32Array(this.count * 3),
             },
@@ -111,20 +109,16 @@ export class ParticleSystem implements GameObject {
                 count: 3,
                 value: new Float32Array(this.count * 3),
             },
-            [IAttributes.aTime]: {
-                count: 1,
-                value: new Float32Array(this.count),
-            },
         };
 
         const b = true;
         for (let i = 0; i < this.count; i++) {
-            this.iattributes[IAttributes.aInitialPosition].value[i * 3 + 0] = b
+            this.iattributes[IAttributes.aPosition].value[i * 3 + 0] = b
                 ? randInRange(this.lowerBoundary, this.upperBoundary)
                 : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
             // : (Math.floor(randInRange(0, 2)) === 0 ? 1 : -1) *
             //   randInRange(this.upperBoundary * 0.5, this.upperBoundary);
-            this.iattributes[IAttributes.aInitialPosition].value[i * 3 + 1] = b
+            this.iattributes[IAttributes.aPosition].value[i * 3 + 1] = b
                 ? randInRange(this.lowerBoundary, this.upperBoundary)
                 : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
             // : (Math.floor(randInRange(0, 2)) === 0 ? 1 : -1) *
@@ -145,38 +139,18 @@ export class ParticleSystem implements GameObject {
         }
     };
 
-    private outOfBounds = (pIndex: number) => {
-        const dimIndex = pIndex * 3;
-        const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-        const times = this.iattributes[IAttributes.aTime].value;
-
-        const time = times[pIndex];
-
-        const n = [0, 0, 0];
-        for (let i = 0; i < DIMENSIONS; i++) {
-            const vi = velocities[dimIndex + i];
-            const pf = initialPositions[dimIndex + i] + vi * time;
-            if (pf <= this.lowerBoundary) {
-                n[i] = 1;
-                return new Vector3(...n);
-            } else if (pf >= this.upperBoundary) {
-                n[i] = -1;
-                return new Vector3(...n);
-            }
-        }
-
-        return new Vector3(...n);
+    private accessAttribute = (attr: Attributes) => {
+        return this.attributes[attr].value;
     };
 
-    private bounceOffWall = (pIndex: number, normal: Vector3, prevTick: number) => {
-        const dimIndex = pIndex * 3;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
+    private accessIAttribute = (iattr: IAttributes) => {
+        return this.iattributes[iattr].value;
+    };
 
-        const vi = new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]);
-        const vf = vi.clone().sub(normal.clone().multiplyScalar(2 * normal.clone().dot(vi)));
-
-        this.setParticleVelocity(pIndex, prevTick, vf);
+    private moveParticle = (particleId: number, tick: number) => {
+        const p = this.getParticlePosition(particleId);
+        const v = this.getParticleVelocity(particleId);
+        this.setParticlePosition(particleId, p.add(v.multiplyScalar(tick)));
     };
 
     get lowerBoundary() {
@@ -203,73 +177,53 @@ export class ParticleSystem implements GameObject {
 
     getMesh = () => this.mesh;
 
-    getParticlePosition = (pIndex: number) => {
-        const dimIndex = pIndex * 3;
-        const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-        const times = this.iattributes[IAttributes.aTime].value;
-
-        return new Vector3(
-            initialPositions[dimIndex] + velocities[dimIndex] * times[pIndex],
-            initialPositions[dimIndex + 1] + velocities[dimIndex + 1] * times[pIndex],
-            initialPositions[dimIndex + 2] + velocities[dimIndex + 2] * times[pIndex]
-        );
+    getParticleIds = () => {
+        return this.iattributes.aPindex.value;
     };
 
-    getParticleVelocity = (pIndex: number) => {
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-        const dimIndex = pIndex * 3;
-        return new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]);
+    getParticlePosition = (particleId: number) => {
+        const offset = particleId * 3;
+        const positions = this.accessIAttribute(IAttributes.aPosition);
+        return new Vector3(positions[offset], positions[offset + 1], positions[offset + 2]);
     };
 
-    setParticleVelocity = (pIndex: number, prevTick: number, vf: Vector3) => {
-        const dimIndex = pIndex * 3;
+    setParticlePosition = (particleId: number, p: Vector3) => {
+        const offset = particleId * 3;
+        const positions = this.accessIAttribute(IAttributes.aPosition);
         const geometry = this.mesh.geometry;
-        const initialPositions = this.iattributes[IAttributes.aInitialPosition].value;
-        const velocities = this.iattributes[IAttributes.aVelocity].value;
-        const times = this.iattributes[IAttributes.aTime].value;
 
-        const elapsedTime = Math.max(times[pIndex] - prevTick, 0);
+        positions[offset] = p.x;
+        positions[offset + 1] = p.y;
+        positions[offset + 2] = p.z;
 
-        const pi = new Vector3(
-            initialPositions[dimIndex],
-            initialPositions[dimIndex + 1],
-            initialPositions[dimIndex + 2]
-        );
-        const vi = new Vector3(velocities[dimIndex], velocities[dimIndex + 1], velocities[dimIndex + 2]);
+        geometry.attributes.aPosition.needsUpdate = true;
+    };
 
-        const pf = pi.clone().add(vi.clone().multiplyScalar(elapsedTime));
+    getParticleVelocity = (particleId: number) => {
+        const offset = particleId * 3;
+        const velocities = this.accessIAttribute(IAttributes.aVelocity);
+        return new Vector3(velocities[offset], velocities[offset + 1], velocities[offset + 2]);
+    };
 
-        initialPositions[dimIndex] = pf.x;
-        initialPositions[dimIndex + 1] = pf.y;
+    setParticleVelocity = (particleId: number, v: Vector3) => {
+        const offset = particleId * 3;
+        const velocities = this.accessIAttribute(IAttributes.aVelocity);
+        const geometry = this.mesh.geometry;
 
-        velocities[dimIndex] = vf.x;
-        velocities[dimIndex + 1] = vf.y;
+        velocities[offset] = v.x;
+        velocities[offset + 1] = v.y;
+        velocities[offset + 2] = v.z;
 
-        times[pIndex] = 0;
-
-        geometry.attributes.aInitialPosition.needsUpdate = true;
         geometry.attributes.aVelocity.needsUpdate = true;
-        geometry.attributes.aTime.needsUpdate = true;
     };
 
     // Basic update for funsies
-    update = (elapsed: number, tick: number, prevElapsed: number, prevTick: number) => {
-        const geometry = this.mesh.geometry;
-        const times = this.iattributes[IAttributes.aTime].value;
+    update = (elapsed: number, tick: number) => {
+        this.shader.uniforms.uTick.value = tick;
 
-        this.shader.uniforms.uTime.value = elapsed;
-
-        for (let i = 0; i < this.count; i++) {
-            const hitNormal = this.outOfBounds(i);
-            if (hitNormal.lengthSq() > 0) {
-                this.bounceOffWall(i, hitNormal, prevTick);
-            }
-
-            times[i] += tick;
-        }
-
-        geometry.attributes.aTime.needsUpdate = true;
+        this.getParticleIds().forEach((particleId) => {
+            this.moveParticle(particleId, tick);
+        });
     };
 
     dispose = () => {
