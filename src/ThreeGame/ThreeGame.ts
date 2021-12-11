@@ -1,12 +1,12 @@
+import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper } from 'three';
 import { GUI } from 'dat.gui';
 
 import { EventSystem } from './../EventSystem/EventSystem';
-import { GameObject } from './../types/GameObject';
-import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper } from 'three';
 import { SETTINGS } from '../Settings/Settings';
+import { GameObject } from './../types/GameObject';
+import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 
 export class ThreeGame {
-    private esys: EventSystem;
     private gui!: GUI;
 
     private id: string;
@@ -17,12 +17,9 @@ export class ThreeGame {
     private camera!: OrthographicCamera;
     private gameObjects: GameObject[];
 
-    static readonly CANVAS_ID = 'glCanvas';
     static readonly SKY_COLOR = '#282c34';
 
-    constructor(esys: EventSystem) {
-        this.esys = esys;
-
+    constructor() {
         this.id = `${Math.floor(Math.random() * 100000)}`;
         this.disposed = false;
         this.gameObjects = [];
@@ -45,10 +42,10 @@ export class ThreeGame {
         console.log(`Initializing three env ${this.id}...`);
 
         // General setup
-        const canvas = document.querySelector(`#${ThreeGame.CANVAS_ID}`);
+        const canvas = CanvasUtils.getCanvas();
 
         if (!canvas) {
-            throw new Error(`No canvas found (selector #${ThreeGame.CANVAS_ID})`);
+            throw new Error(`No canvas found (selector #${CanvasUtils.CANVAS_ID})`);
         }
 
         this.renderer = new WebGLRenderer({ canvas });
@@ -83,8 +80,16 @@ export class ThreeGame {
 
     // API
 
-    start = () => {
-        if (!this.esys.isPaused()) {
+    getRenderer = () => {
+        return this.renderer;
+    };
+
+    getScene = () => {
+        return this.scene;
+    };
+
+    start = (esys: EventSystem) => {
+        if (!esys.isPaused()) {
             throw new Error('Attempted to start game that is already running.');
         }
 
@@ -93,7 +98,7 @@ export class ThreeGame {
             prevTick = 0;
 
         const render = (elapsed: number) => {
-            if (this.esys.isPaused()) {
+            if (esys.isPaused()) {
                 isRendering = false;
                 return;
             }
@@ -127,22 +132,19 @@ export class ThreeGame {
             requestAnimationFrame(render);
         };
 
-        this.esys.onPlay(() => {
+        esys.addEventListener('play', () => {
             if (isRendering) {
                 throw new Error('Attempted to initiate multiple render loops.');
             }
             isRendering = true;
             requestAnimationFrame(render);
         });
-        this.esys.play();
+
+        esys.play();
     };
 
     addGameObject = (o: GameObject) => {
         this.gameObjects.push(o);
-    };
-
-    getScene = () => {
-        return this.scene;
     };
 
     dispose = () => {
@@ -163,15 +165,14 @@ export class ThreeGame {
         }
 
         this.gameObjects.forEach((o) => o.dispose());
-        this.esys.dispose();
         this.gui?.destroy();
     };
 
     withUI = () => {
-        const gui = new GUI();
+        this.gui = new GUI();
 
         Object.keys(SETTINGS).forEach((section) => {
-            const folder = gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
+            const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
             Object.keys(SETTINGS[section]).forEach((setting) => {
                 folder.add(
                     SETTINGS[section],

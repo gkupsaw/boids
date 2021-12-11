@@ -1,25 +1,57 @@
+import { EventSystem } from './../EventSystem/EventSystem';
 import { Scene, Vector3 } from 'three';
 
 import { GameObject } from '../types/GameObject';
 import { ParticleSystem, ParticleSystemOptions } from '../ParticleSystem/ParticleSystem';
 import { BB, SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
 import { SETTINGS } from '../Settings/Settings';
+import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 
 export class BoidSystem implements GameObject {
     private psys: ParticleSystem;
+    private centersOfAttraction: Record<string, Vector3>;
 
     constructor(scene: Scene, options: ParticleSystemOptions = {}) {
         this.psys = new ParticleSystem(scene, { ...options, count: 400, particleSize: 0.04 });
+        this.centersOfAttraction = {};
     }
+
+    private seekCentersOfAttraction = (particleId: number) => {
+        const centersOfAttraction = Object.values(this.centersOfAttraction);
+        if (centersOfAttraction.length === 0) return new Vector3();
+
+        const particleSize = this.psys.getParticleSize();
+
+        const p = this.psys.getParticlePosition(particleId);
+
+        const awareness = SETTINGS.attraction.awarenessFactor * particleSize;
+        const sensitivity = SETTINGS.attraction.sensitivity;
+
+        let n = 0;
+        const dir = new Vector3();
+
+        for (const pOther of centersOfAttraction) {
+            const d = pOther.distanceToSquared(p);
+
+            if (d < awareness) {
+                const attractionDir = pOther.clone().sub(p).normalize();
+                dir.add(attractionDir.multiplyScalar(1 / d));
+                n++;
+            }
+        }
+
+        if (n === 0) return new Vector3();
+
+        return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+    };
 
     private avoidWalls = (particleId: number, tick: number) => {
         const particleSize = this.psys.getParticleSize();
-        const speed = this.psys.getSpeed();
         const lowerBoundary = this.psys.lowerBoundary;
         const upperBoundary = this.psys.upperBoundary;
 
-        const awareness = 2 * particleSize;
-        const sensitivity = 0.001;
+        const awareness = SETTINGS.obstacles.awarenessFactor * particleSize;
+        const sensitivity = SETTINGS.obstacles.sensitivity;
 
         const pi = this.psys.getParticlePosition(particleId);
         const vi = this.psys.getParticleVelocity(particleId);
@@ -44,16 +76,17 @@ export class BoidSystem implements GameObject {
                 : 0
         );
 
-        if (dir.lengthSq() > 0) {
-            dir.normalize().multiplyScalar(sensitivity);
-            const vf = dir.add(vi).normalize().multiplyScalar(speed);
-            this.psys.setParticleVelocity(particleId, vf);
-        }
+        return dir.normalize().multiplyScalar(sensitivity);
+
+        // if (dir.lengthSq() > 0) {
+        //     dir.normalize().multiplyScalar(sensitivity);
+        //     const vf = dir.add(vi).normalize().multiplyScalar(speed);
+        //     this.psys.setParticleVelocity(particleId, vf);
+        // }
     };
 
     private separateFromNeighbors = (particleId: number) => {
         const particleSize = this.psys.getParticleSize();
-        const speed = this.psys.getSpeed();
 
         const p = this.psys.getParticlePosition(particleId);
 
@@ -62,6 +95,8 @@ export class BoidSystem implements GameObject {
 
         let n = 0;
         const dir = new Vector3();
+
+        if (sensitivity === 0) return dir;
 
         this.psys.getParticleIds().forEach((otherParticleId) => {
             if (otherParticleId !== particleId) {
@@ -77,18 +112,21 @@ export class BoidSystem implements GameObject {
             }
         });
 
-        if (n > 0) {
-            dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
-            const vi = this.psys.getParticleVelocity(particleId);
-            const vf = dir.add(vi).normalize().multiplyScalar(speed);
+        if (n === 0) return new Vector3();
 
-            this.psys.setParticleVelocity(particleId, vf);
-        }
+        return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+
+        // if (n > 0) {
+        //     dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+        //     const vi = this.psys.getParticleVelocity(particleId);
+        //     const vf = dir.add(vi).normalize().multiplyScalar(speed);
+
+        //     this.psys.setParticleVelocity(particleId, vf);
+        // }
     };
 
     private alignWithNeighbors = (particleId: number) => {
         const particleSize = this.psys.getParticleSize();
-        const speed = this.psys.getSpeed();
 
         const p = this.psys.getParticlePosition(particleId);
 
@@ -97,6 +135,8 @@ export class BoidSystem implements GameObject {
 
         let n = 0;
         const dir = new Vector3();
+
+        if (sensitivity === 0) return dir;
 
         this.psys.getParticleIds().forEach((otherParticleId) => {
             if (otherParticleId !== particleId) {
@@ -111,13 +151,17 @@ export class BoidSystem implements GameObject {
             }
         });
 
-        if (n > 0) {
-            dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
-            const vi = this.psys.getParticleVelocity(particleId);
-            const vf = dir.add(vi).normalize().multiplyScalar(speed);
+        if (n === 0) return new Vector3();
 
-            this.psys.setParticleVelocity(particleId, vf);
-        }
+        return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+
+        // if (n > 0) {
+        //     dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+        //     const vi = this.psys.getParticleVelocity(particleId);
+        //     const vf = dir.add(vi).normalize().multiplyScalar(speed);
+
+        //     this.psys.setParticleVelocity(particleId, vf);
+        // }
     };
 
     private cohesion = () => {
@@ -126,6 +170,8 @@ export class BoidSystem implements GameObject {
         const size = this.psys.getSize();
         const spaceSize = size;
         const numBoxesPerDimension = 20;
+
+        if (sensitivity === 0) return new Vector3();
 
         // Initialize spatial partition
         const spatialPartitioning = new SpatialPartitioning(spaceSize, numBoxesPerDimension, numBoxesPerDimension);
@@ -176,14 +222,53 @@ export class BoidSystem implements GameObject {
         }
     };
 
+    setCenterOfAttraction = (id: string, p: Vector3) => {
+        this.centersOfAttraction[id] = p;
+    };
+
+    removeCenterOfAttraction = (id: string) => {
+        delete this.centersOfAttraction[id];
+    };
+
+    subscribeToEvents = (esys: EventSystem) => {
+        const onMousemove = (e: MouseEvent) => {
+            const canvasDimensions = CanvasUtils.getCanvasDimensions();
+
+            if (canvasDimensions) {
+                const psysSize = this.psys.getSize();
+                const mousecenter = new Vector3(
+                    psysSize * (e.x / canvasDimensions.width - 1 / 2),
+                    -psysSize * (e.y / canvasDimensions.height - 1 / 2),
+                    0
+                );
+                console.log(mousecenter.toArray().map((n) => Math.floor(n * 1000) / 1000));
+                this.setCenterOfAttraction('mousecenter', mousecenter);
+            }
+        };
+        esys.addEventListener('mousemove', onMousemove);
+        return () => esys.removeEventListener('mousemove', onMousemove);
+    };
+
     update = (elapsed: number, tick: number) => {
         this.psys.update(elapsed, tick);
         const particleIds = this.psys.getParticleIds();
 
         particleIds.forEach((particleId) => {
-            this.avoidWalls(particleId, tick);
-            this.separateFromNeighbors(particleId);
-            this.alignWithNeighbors(particleId);
+            const dir0 = this.avoidWalls(particleId, tick);
+            const dir1 = this.separateFromNeighbors(particleId);
+            const dir2 = this.alignWithNeighbors(particleId);
+            const dir3 = this.seekCentersOfAttraction(particleId);
+
+            const vf = dir0
+                .add(dir1)
+                .add(dir2)
+                .add(dir3)
+                .normalize()
+                .add(this.psys.getParticleVelocity(particleId))
+                .normalize()
+                .multiplyScalar(this.psys.getSpeed());
+
+            this.psys.setParticleVelocity(particleId, vf);
         });
 
         // this.cohesion();

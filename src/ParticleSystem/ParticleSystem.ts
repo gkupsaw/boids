@@ -42,7 +42,11 @@ export class ParticleSystem implements GameObject {
     private particleSize: number;
     private speed: number;
 
-    private shader: { uniforms: { [uniformName: string]: any }; vert: string; frag: string };
+    private shader: {
+        uniforms: { [uniformName: string]: any };
+        vert: string;
+        frag: string;
+    };
     private attributes!: { [key in Attributes]: Attribute };
     private iattributes!: { [key in IAttributes]: Attribute };
     private mesh: Mesh;

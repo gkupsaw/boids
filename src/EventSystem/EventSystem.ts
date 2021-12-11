@@ -1,10 +1,24 @@
-export class EventSystem {
-    private paused: boolean;
-    private onPlayCallback: () => void;
+import { EventDispatcher } from './EventDispatcher';
 
-    constructor() {
+enum CustomEvent {
+    pause = 'pause',
+    play = 'play',
+    mousemove = 'mousemove',
+}
+
+const _pauseEvent = { type: CustomEvent.pause };
+const _playEvent = { type: CustomEvent.play };
+const _mousemoveEvent = { type: CustomEvent.mousemove };
+
+export class EventSystem extends EventDispatcher {
+    private rootEl: HTMLElement;
+    private paused: boolean;
+
+    constructor(rootEl: HTMLElement) {
+        super();
+
+        this.rootEl = rootEl;
         this.paused = true;
-        this.onPlayCallback = () => {};
 
         this.setupListeners();
     }
@@ -23,8 +37,13 @@ export class EventSystem {
         }
     };
 
+    private onMouseMove = (e: MouseEvent) => {
+        this.dispatchEvent({ ..._mousemoveEvent, x: e.x, y: e.y });
+    };
+
     private setupListeners = () => {
-        window.addEventListener('keydown', this.onKeyDown);
+        this.rootEl.addEventListener('keydown', this.onKeyDown, false);
+        this.rootEl.addEventListener('mousemove', this.onMouseMove, false);
     };
 
     isPaused = () => {
@@ -32,21 +51,21 @@ export class EventSystem {
     };
 
     pause = () => {
-        this.paused = true;
+        if (!this.paused) {
+            this.paused = true;
+            this.dispatchEvent(_pauseEvent);
+        }
     };
 
     play = () => {
         if (this.paused) {
             this.paused = false;
-            this.onPlayCallback();
+            this.dispatchEvent(_playEvent);
         }
     };
 
-    onPlay = (cb: () => void) => {
-        this.onPlayCallback = cb;
-    };
-
     dispose = () => {
-        window.removeEventListener('keydown', this.onKeyDown);
+        this.rootEl.removeEventListener('keydown', this.onKeyDown);
+        this.rootEl.removeEventListener('mousemove', this.onMouseMove);
     };
 }
