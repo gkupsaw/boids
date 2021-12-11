@@ -29,6 +29,6 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.cohesion]: {
         awarenessFactor: 1,
-        sensitivity: 0.05,
+        sensitivity: 0.5,
     },
 };

@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Vector3, Object3D, PlaneGeometry, MeshBasicMaterial, Mesh, Material, Line, BufferGeometry } from 'three';
 
 export type BB = {
     x: number;
@@ -13,12 +13,20 @@ export class SpatialPartitioning {
     private readonly width: number;
     private readonly height: number;
     private bbs: Record<number, BB>;
+    private mesh!: Line;
 
     constructor(size: number, width: number, height: number) {
         this.size = size;
         this.width = width;
         this.height = height;
         this.bbs = {};
+    }
+
+    get boxWidth() {
+        return this.size / this.width;
+    }
+    get boxHeight() {
+        return this.size / this.height;
     }
 
     getSize = () => this.size;
@@ -36,13 +44,11 @@ export class SpatialPartitioning {
     getOccupiedBBs = () => Object.values(this.bbs);
 
     insertParticle = (particleId: number, p: Vector3) => {
-        const boxWidth = this.size / this.width;
-        const boxHeight = this.size / this.height;
-
         const boxX =
-            Math.min(this.width / 2 - 1, Math.max(-this.width / 2, Math.floor(p.x / boxWidth))) + this.width / 2;
+            Math.min(this.width / 2 - 1, Math.max(-this.width / 2, Math.floor(p.x / this.boxWidth))) + this.width / 2;
         const boxY =
-            Math.min(this.height / 2 - 1, Math.max(-this.height / 2, Math.floor(p.y / boxHeight))) + this.height / 2;
+            Math.min(this.height / 2 - 1, Math.max(-this.height / 2, Math.floor(p.y / this.boxHeight))) +
+            this.height / 2;
 
         const id = this.getBBIdFromPosition(boxX, boxY);
 
@@ -92,5 +98,40 @@ export class SpatialPartitioning {
         }
 
         return valid;
+    };
+
+    clear = () => {
+        this.bbs = {};
+    };
+
+    withVisualization = (parent: Object3D) => {
+        const points = [];
+
+        const offset = -this.size / 2;
+        for (let i = 0; i < this.height; i++) {
+            for (let j = 0; j < this.width; j++) {
+                points.push(new Vector3(offset + j * this.boxWidth, offset + i * this.boxHeight, 0));
+                points.push(new Vector3(offset + (j + 1) * this.boxWidth, offset + i * this.boxHeight, 0));
+                points.push(new Vector3(offset + (j + 1) * this.boxWidth, offset + (i + 1) * this.boxHeight, 0));
+                points.push(new Vector3(offset + j * this.boxWidth, offset + (i + 1) * this.boxHeight, 0));
+                points.push(new Vector3(offset + j * this.boxWidth, offset + i * this.boxHeight, 0));
+            }
+            points.push(new Vector3(-offset - this.boxWidth, offset + (i + 1) * this.boxHeight, 0));
+        }
+
+        const geo = new BufferGeometry().setFromPoints(points);
+        const mat = new MeshBasicMaterial({ color: 0xff0000 });
+        this.mesh = new Line(geo, mat);
+
+        this.mesh.scale.multiplyScalar(0.99);
+
+        parent.add(this.mesh);
+
+        return this;
+    };
+
+    dispose = () => {
+        this.mesh?.geometry.dispose();
+        (this.mesh?.material as Material).dispose();
     };
 }
