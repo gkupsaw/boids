@@ -20,7 +20,7 @@ class App extends React.Component {
     }
 
     componentDidMount = () => {
-        this.game = new ThreeGame().withUI();
+        this.game = new ThreeGame().withUI().withRendererStats();
         this.esys = new EventSystem(document.body);
         // this.esys = new EventSystem(this.game.getRenderer().domElement);
 

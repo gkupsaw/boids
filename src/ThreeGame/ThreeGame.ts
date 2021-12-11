@@ -1,3 +1,4 @@
+import { RendererStats } from './debug/RendererStats';
 import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper } from 'three';
 import { GUI } from 'dat.gui';
 
@@ -8,6 +9,11 @@ import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 
 export class ThreeGame {
     private gui!: GUI;
+    private rendererStats!: {
+        domElement: HTMLElement;
+        update: (renderer: WebGLRenderer) => void;
+        dispose: () => void;
+    };
 
     private id: string;
     private disposed: boolean;
@@ -125,6 +131,9 @@ export class ThreeGame {
             // Render the scene
             this.renderer.render(this.scene, this.camera);
 
+            // Debug
+            this.rendererStats?.update(this.renderer);
+
             // Track previous values
             prevElapsed = elapsed;
             prevTick = tick;
@@ -147,27 +156,6 @@ export class ThreeGame {
         this.gameObjects.push(o);
     };
 
-    dispose = () => {
-        if (this.disposed) return;
-
-        console.log(`Disposing three env ${this.id}...`);
-
-        // Stop everything
-        this.disposed = true;
-
-        // Free up resources
-        if (this.renderer) {
-            this.renderer.renderLists.dispose();
-            this.renderer.dispose();
-        }
-        if (this.scene) {
-            this.scene.clear();
-        }
-
-        this.gameObjects.forEach((o) => o.dispose());
-        this.gui?.destroy();
-    };
-
     withUI = () => {
         this.gui = new GUI();
 
@@ -187,9 +175,39 @@ export class ThreeGame {
         return this;
     };
 
-    withDebug = () => {
-        this.scene.add(new AxesHelper(1));
+    withRendererStats = () => {
+        this.rendererStats = RendererStats();
+        console.log(this.rendererStats);
 
         return this;
+    };
+
+    withDebug = () => {
+        this.scene.add(new AxesHelper(1));
+        this.withRendererStats();
+
+        return this;
+    };
+
+    dispose = () => {
+        if (this.disposed) return;
+
+        console.log(`Disposing three env ${this.id}...`);
+
+        // Stop everything
+        this.disposed = true;
+
+        // Free up resources
+        if (this.renderer) {
+            this.renderer.renderLists.dispose();
+            this.renderer.dispose();
+        }
+        if (this.scene) {
+            this.scene.clear();
+        }
+
+        this.gameObjects.forEach((o) => o.dispose());
+        this.gui?.destroy();
+        this.rendererStats?.dispose();
     };
 }

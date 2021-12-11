@@ -1,6 +1,6 @@
-// All credit to https://github.com/jeromeetienne/threex.rendererstats/blob/master/threex.rendererstats.js
+//  credit to https://github.com/jeromeetienne/threex.rendererstats/blob/master/threex.rendererstats.js
 
-import { WebGLRenderer } from 'shared/engine/lib/extern/three';
+import { WebGLRenderer } from 'three';
 
 /**
  * provide info on THREE.WebGLRenderer
@@ -8,7 +8,7 @@ import { WebGLRenderer } from 'shared/engine/lib/extern/three';
  * @param {Object} renderer the renderer to update
  * @param {Object} Camera the camera to update
  */
-export const RendererStats = function (style = { position: 'absolute', left: '0px', top: '0px' }) {
+export const RendererStats = function (style: Record<string, any> = { position: 'absolute', left: '0px', top: '0px' }) {
     // var msMin = 100;
     // var msMax = 0;
     const scale = 2.5;
@@ -17,6 +17,7 @@ export const RendererStats = function (style = { position: 'absolute', left: '0p
     container.style.cssText = `width:${scale * 80}px;opacity:0.9;cursor:pointer`;
 
     for (const k of Object.keys(style)) {
+        // @ts-ignore
         container.style[k] = style[k];
     }
 
@@ -31,7 +32,7 @@ export const RendererStats = function (style = { position: 'absolute', left: '0p
     msText.innerHTML = `WebGLRenderer`;
     msDiv.appendChild(msText);
 
-    var msTexts = [];
+    var msTexts: HTMLElement[] = [];
     var nLines = 9;
     for (var i = 0; i < nLines; i++) {
         msTexts[i] = document.createElement(`div`);
@@ -42,28 +43,27 @@ export const RendererStats = function (style = { position: 'absolute', left: '0p
         msTexts[i].innerHTML = '-';
     }
 
+    document.body.appendChild(container);
+
     var lastTime = Date.now();
     return {
         domElement: container,
 
-        update: function (webGLRenderer) {
-            // sanity check
-            console.assert(webGLRenderer instanceof WebGLRenderer);
-
+        update: function (webGLRenderer: WebGLRenderer) {
             // refresh only 30time per second
             if (Date.now() - lastTime < 1000 / 30) return;
             lastTime = Date.now();
 
             var i = 0;
             msTexts[i++].textContent = '== Memory =====';
-            msTexts[i++].textContent = 'Programs: ' + webGLRenderer.info.memory.programs;
+            msTexts[i++].textContent = 'Programs: ' + webGLRenderer.info.programs?.map(({ name }) => name);
             msTexts[i++].textContent = 'Geometries: ' + webGLRenderer.info.memory.geometries;
             msTexts[i++].textContent = 'Textures: ' + webGLRenderer.info.memory.textures;
 
             msTexts[i++].textContent = '== Render =====';
+            msTexts[i++].textContent = 'Frame: ' + webGLRenderer.info.render.frame;
             msTexts[i++].textContent = 'Calls: ' + webGLRenderer.info.render.calls;
-            msTexts[i++].textContent = 'Vertices: ' + webGLRenderer.info.render.vertices;
-            msTexts[i++].textContent = 'Faces: ' + webGLRenderer.info.render.faces;
+            msTexts[i++].textContent = 'Triangles: ' + webGLRenderer.info.render.triangles;
             msTexts[i++].textContent = 'Points: ' + webGLRenderer.info.render.points;
         },
 
