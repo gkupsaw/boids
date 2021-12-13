@@ -7,10 +7,13 @@ import { BB, SpatialPartitioning } from '../SpatialPartitioning/SpatialPartition
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 
+type BoidRule = (particleId: number, tick: number) => Vector3;
+
 export class BoidSystem implements GameObject {
     private psys: ParticleSystem;
     private spatialPartitioning: SpatialPartitioning;
     private centersOfAttraction: Record<string, Vector3>;
+    private rules: BoidRule[];
 
     constructor(scene: Scene, options: ParticleSystemOptions = {}) {
         this.psys = new ParticleSystem(scene, { ...options, count: 400, particleSize: 0.04 });
@@ -18,6 +21,13 @@ export class BoidSystem implements GameObject {
         this.spatialPartitioning = new SpatialPartitioning(this.psys.getSize(), 20, 20).withVisualization(scene);
 
         this.centersOfAttraction = {};
+
+        this.rules = [
+            this.seekCentersOfAttraction,
+            this.avoidWalls,
+            this.separateFromNeighbors,
+            this.alignWithNeighbors,
+        ];
     }
 
     private seekCentersOfAttraction = (particleId: number) => {
@@ -150,7 +160,7 @@ export class BoidSystem implements GameObject {
         const sensitivity = SETTINGS.cohesion.sensitivity;
         const speed = this.psys.getSpeed();
 
-        if (sensitivity === 0) return new Vector3();
+        if (sensitivity === 0) return;
 
         // Initialize spatial partition
         this.psys.getParticleIds().forEach((particleId) => {
@@ -231,19 +241,16 @@ export class BoidSystem implements GameObject {
         this.psys.update(elapsed, tick);
         this.spatialPartitioning.clear();
         const particleIds = this.psys.getParticleIds();
+        const speed = this.psys.getSpeed();
 
         particleIds.forEach((particleId) => {
-            const speed = this.psys.getSpeed();
-            const dir0 = this.avoidWalls(particleId, tick);
-            // const dir1 = this.separateFromNeighbors(particleId);
-            // const dir2 = this.alignWithNeighbors(particleId);
-            // const dir3 = this.seekCentersOfAttraction(particleId);
-            const adjustmentDir = dir0
-                // .add(dir1).add(dir2).add(dir3)
+            const adjustmentDir = this.rules
+                .reduce((acc, rule) => acc.add(rule(particleId, tick)), new Vector3())
                 .normalize()
                 .multiplyScalar(speed);
 
-            const vf = adjustmentDir.add(this.psys.getParticleVelocity(particleId)).normalize().multiplyScalar(speed);
+            const vi = this.psys.getParticleVelocity(particleId);
+            const vf = adjustmentDir.add(vi).normalize().multiplyScalar(speed);
 
             this.psys.setParticleVelocity(particleId, vf);
         });

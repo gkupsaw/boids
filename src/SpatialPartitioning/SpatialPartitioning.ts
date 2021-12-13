@@ -1,4 +1,19 @@
-import { Vector3, Object3D, PlaneGeometry, MeshBasicMaterial, Mesh, Material, Line, BufferGeometry } from 'three';
+import { Shaders } from './../gl/shaders/index';
+import {
+    Vector3,
+    Object3D,
+    MeshBasicMaterial,
+    Material,
+    Line,
+    InstancedBufferGeometry,
+    BufferAttribute,
+    InstancedBufferAttribute,
+    ShaderMaterial,
+    Mesh,
+    LineBasicMaterial,
+    BufferGeometry,
+    Float32BufferAttribute,
+} from 'three';
 
 export type BB = {
     x: number;
@@ -13,7 +28,7 @@ export class SpatialPartitioning {
     private readonly width: number;
     private readonly height: number;
     private bbs: Record<number, BB>;
-    private mesh!: Line;
+    private mesh!: Line | Mesh;
 
     constructor(size: number, width: number, height: number) {
         this.size = size;
@@ -105,27 +120,40 @@ export class SpatialPartitioning {
     };
 
     withVisualization = (parent: Object3D) => {
-        const points = [];
+        const positions = [];
+        const colors = [];
 
         const offset = -this.size / 2;
         for (let i = 0; i < this.height; i++) {
             for (let j = 0; j < this.width; j++) {
-                points.push(new Vector3(offset + j * this.boxWidth, offset + i * this.boxHeight, 0));
-                points.push(new Vector3(offset + (j + 1) * this.boxWidth, offset + i * this.boxHeight, 0));
-                points.push(new Vector3(offset + (j + 1) * this.boxWidth, offset + (i + 1) * this.boxHeight, 0));
-                points.push(new Vector3(offset + j * this.boxWidth, offset + (i + 1) * this.boxHeight, 0));
-                points.push(new Vector3(offset + j * this.boxWidth, offset + i * this.boxHeight, 0));
+                positions.push(offset + j * this.boxWidth, offset + i * this.boxHeight, 0);
+                colors.push(1, 0, 0);
+                positions.push(offset + j * this.boxWidth, offset + (i + 1) * this.boxHeight, 0);
+                colors.push(1, 0, 0);
+                positions.push(offset + (j + 1) * this.boxWidth, offset + (i + 1) * this.boxHeight, 0);
+                colors.push(1, 0, 0);
+                positions.push(offset + (j + 1) * this.boxWidth, offset + i * this.boxHeight, 0);
+                colors.push(1, 0, 0);
             }
-            points.push(new Vector3(-offset - this.boxWidth, offset + (i + 1) * this.boxHeight, 0));
+            positions.push(offset, offset + i * this.boxHeight, 0);
+            colors.push(1, 0, 0);
         }
 
-        const geo = new BufferGeometry().setFromPoints(points);
-        const mat = new MeshBasicMaterial({ color: 0xff0000 });
-        this.mesh = new Line(geo, mat);
+        const geo = new BufferGeometry();
+        geo.setAttribute('position', new Float32BufferAttribute(positions, 3));
+        geo.setAttribute('color', new Float32BufferAttribute(colors, 3));
 
+        const mat = new LineBasicMaterial({ vertexColors: true });
+
+        this.mesh = new Line(geo, mat).computeLineDistances();
         this.mesh.scale.multiplyScalar(0.99);
 
         parent.add(this.mesh);
+
+        colors[1] = 1;
+        colors[2] = 1;
+
+        geo.attributes.color.needsUpdate = true;
 
         return this;
     };
