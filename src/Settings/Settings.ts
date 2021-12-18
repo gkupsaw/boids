@@ -21,14 +21,14 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.separation]: {
         awarenessFactor: 1,
-        sensitivity: 0.0075,
+        sensitivity: 0.01,
     },
     [SettingSection.alignment]: {
         awarenessFactor: 1,
-        sensitivity: 0.75,
+        sensitivity: 0.01,
     },
     [SettingSection.cohesion]: {
         awarenessFactor: 1,
-        sensitivity: 0.5,
+        sensitivity: 0.01,
     },
 };

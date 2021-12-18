@@ -24,7 +24,8 @@ class App extends React.Component {
         this.esys = new EventSystem(document.body);
         // this.esys = new EventSystem(this.game.getRenderer().domElement);
 
-        const bsys = new BoidSystem(this.game.getScene());
+        // count: 500, particleSize: 0.04, speed: 0.3
+        const bsys = new BoidSystem(this.game.getScene(), { size: 2, count: 50, particleSize: 0.08, speed: 0.25 });
         const unsubscribeBsysFromEvents = bsys.subscribeToEvents(this.esys);
         this.cleanup.push(unsubscribeBsysFromEvents);
         this.game.addGameObject(bsys);

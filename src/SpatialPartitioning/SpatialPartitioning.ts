@@ -1,92 +1,104 @@
-import {
-    Vector3,
-    Object3D,
-    Material,
-    Line,
-    Mesh,
-    LineBasicMaterial,
-    BufferGeometry,
-    Float32BufferAttribute,
-} from 'three';
+import { Vector3, Object3D, Material, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute } from 'three';
+
+type ID = number;
+
+export type PointData = {
+    id: ID;
+    p: Vector3;
+};
+
+export type Point = PointData & {
+    bb: ID;
+};
 
 export type BB = {
+    id: ID;
+
     x: number;
     y: number;
     z: number;
-    particles: number[];
+
+    points: ID[];
+    cluster: ID;
 
     visited: boolean;
 };
 
+export type BBCluster = {
+    center: Vector3;
+
+    bbs: BB[];
+};
+
 export class SpatialPartitioning {
     private readonly size: number;
-    private readonly width: number;
-    private readonly height: number;
-    private readonly depth: number;
+    private readonly widthDivisions: number;
+    private readonly heightDivisions: number;
+    private readonly depthDivisions: number;
+    private readonly trackClusters: boolean;
+
+    private points: Record<number, Point>;
     private bbs: Record<number, BB>;
-    private mesh!: Line | Mesh;
+    private clusters: BBCluster[];
+    private viz!: Record<number, Line>;
 
-    constructor(size: number, width: number, height: number, depth: number) {
+    constructor(size: number, width: number, height: number, depth: number, { trackClusters = true } = {}) {
         this.size = size;
-        this.width = width;
-        this.height = height;
-        this.depth = depth;
+        this.widthDivisions = width;
+        this.heightDivisions = height;
+        this.depthDivisions = depth;
+        this.trackClusters = trackClusters;
+
         this.bbs = {};
+        this.points = {};
+        this.clusters = [];
     }
 
-    get boxWidth() {
-        return this.size / this.width;
-    }
-
-    get boxHeight() {
-        return this.size / this.height;
-    }
-
-    get boxDepth() {
-        return this.size / this.depth;
-    }
-
-    private isBBWithinSpace = (x: number, y: number, z: number) =>
-        x >= 0 && x < this.width && y >= 0 && y < this.height && z >= 0 && z < this.depth;
-
-    getSize = () => this.size;
-
-    getWidth = () => this.width;
-
-    getHeight = () => this.height;
-
-    getDepth = () => this.depth;
-
-    getBB = (x: number, y: number, z: number) => this.bbs[this.getBBIdFromPosition(x, y, z)];
-
-    getBBId = (bb: BB) => this.getBBIdFromPosition(bb.x, bb.y, bb.z);
-
-    getBBIdFromPosition = (x: number, y: number, z: number): number =>
-        x + y * this.width + z * this.width * this.height;
-
-    getOccupiedBBs = () => Object.values(this.bbs);
-
-    insertParticle = (particleId: number, p: Vector3) => {
-        const boxX =
-            Math.min(this.width / 2 - 1, Math.max(-this.width / 2, Math.floor(p.x / this.boxWidth))) + this.width / 2;
-        const boxY =
-            Math.min(this.height / 2 - 1, Math.max(-this.height / 2, Math.floor(p.y / this.boxHeight))) +
-            this.height / 2;
-        const boxZ =
-            Math.min(this.depth / 2 - 1, Math.max(-this.depth / 2, Math.floor(p.y / this.boxDepth))) + this.depth / 2;
-
-        const id = this.getBBIdFromPosition(boxX, boxY, boxZ);
-
-        if (this.bbs[id]) {
-            this.bbs[id].particles.push(particleId);
-        } else {
-            this.bbs[id] = { x: boxX, y: boxY, z: boxZ, particles: [particleId], visited: false };
-        }
+    private isValidBBLocation = (x: number, y: number, z: number) => {
+        return (
+            x >= 0 && x < this.widthDivisions && y >= 0 && y < this.heightDivisions && z >= 0 && z < this.depthDivisions
+        );
     };
 
-    getCluster = (startingBB: BB) => {
+    private getBBId = (x: number, y: number, z: number): number => {
+        return x + y * this.widthDivisions + z * this.widthDivisions * this.heightDivisions;
+    };
+
+    private getOccupiedBBs = () => {
+        return Object.values(this.bbs);
+    };
+
+    private insertPoint = (pointId: ID, p: Vector3) => {
+        const boxX =
+            Math.min(this.widthDivisions / 2 - 1, Math.max(-this.widthDivisions / 2, Math.floor(p.x / this.boxWidth))) +
+            this.widthDivisions / 2;
+        const boxY =
+            Math.min(
+                this.heightDivisions / 2 - 1,
+                Math.max(-this.heightDivisions / 2, Math.floor(p.y / this.boxHeight))
+            ) +
+            this.heightDivisions / 2;
+        const boxZ =
+            Math.min(this.depthDivisions / 2 - 1, Math.max(-this.depthDivisions / 2, Math.floor(p.z / this.boxDepth))) +
+            this.depthDivisions / 2;
+
+        const bbId = this.getBBId(boxX, boxY, boxZ);
+
+        if (this.bbs[bbId]) {
+            this.bbs[bbId].points.push(pointId);
+        } else {
+            this.bbs[bbId] = { id: bbId, x: boxX, y: boxY, z: boxZ, points: [pointId], cluster: -1, visited: false };
+        }
+
+        this.points[pointId] = { id: pointId, p: p.clone(), bb: bbId };
+    };
+
+    private gatherCluster = (startingBB: BB) => {
         startingBB.visited = true;
         const valid = [startingBB];
+
+        const center = new Vector3();
+        let pCount = 0;
 
         const stack: BB[] = [startingBB];
         while (stack.length > 0) {
@@ -107,12 +119,18 @@ export class SpatialPartitioning {
                 ];
 
                 for (const [neighborX, neighborY, neighborZ] of neighbors) {
-                    if (this.isBBWithinSpace(neighborX, neighborY, neighborZ)) {
-                        const neighborId = this.getBBIdFromPosition(neighborX, neighborY, neighborZ);
+                    if (this.isValidBBLocation(neighborX, neighborY, neighborZ)) {
+                        const neighborId = this.getBBId(neighborX, neighborY, neighborZ);
                         const neighbor = this.bbs[neighborId];
 
                         if (neighbor && !neighbor.visited) {
+                            pCount += neighbor.points.length;
+                            center.add(
+                                neighbor.points.reduce((acc, pointId) => acc.add(this.points[pointId].p), new Vector3())
+                            );
+
                             valid.push(neighbor);
+                            neighbor.cluster = this.clusters.length;
                             neighbor.visited = true;
                             stack.push(neighbor);
                         }
@@ -121,54 +139,170 @@ export class SpatialPartitioning {
             }
         }
 
-        return valid;
+        center.multiplyScalar(1 / pCount);
+
+        return { center, bbs: valid };
     };
 
+    private gatherAllClusters = () => {
+        const activeBBs = this.getOccupiedBBs();
+        for (const bb of activeBBs) {
+            if (!bb.visited) {
+                const cluster = this.gatherCluster(bb);
+
+                if (cluster.bbs.length > 1) {
+                    this.clusters.push(cluster);
+                } else if (cluster.bbs.length === 1) {
+                    cluster.bbs[0].cluster = -1;
+                }
+            }
+        }
+    };
+
+    get boxWidth() {
+        return this.size / this.widthDivisions;
+    }
+
+    get boxHeight() {
+        return this.size / this.heightDivisions;
+    }
+
+    get boxDepth() {
+        return this.size / this.depthDivisions;
+    }
+
+    getSize = () => this.size;
+
+    getWidth = () => this.widthDivisions;
+
+    getHeight = () => this.heightDivisions;
+
+    getDepth = () => this.depthDivisions;
+
+    getBB = (x: number, y: number, z: number) => this.bbs[this.getBBId(x, y, z)];
+
+    getClusterForPoint = (pointId: ID) => this.clusters[this.bbs[this.points[pointId].bb].cluster];
+
     clear = () => {
+        if (this.viz) {
+            this.getOccupiedBBs().forEach((bb) => {
+                const mat = this.viz[this.getBBId(bb.x, bb.y, bb.z)].material as LineBasicMaterial;
+                mat.opacity = 0;
+            });
+        }
+
         this.bbs = {};
+        this.points = {};
+        this.clusters = [];
+    };
+
+    update = (points: PointData[]) => {
+        this.clear();
+
+        // Reinitialize spatial partition
+        points.forEach(({ id, p }) => {
+            this.insertPoint(id, p);
+        });
+
+        if (this.trackClusters) {
+            this.gatherAllClusters();
+
+            if (this.viz) {
+                console.log(this.clusters);
+                this.clusters.forEach(({ bbs }) => {
+                    bbs.forEach((bb) => {
+                        const mat = this.viz[this.getBBId(bb.x, bb.y, bb.z)].material as LineBasicMaterial;
+                        mat.opacity = 1;
+                    });
+                });
+            }
+        } else if (this.viz) {
+            this.getOccupiedBBs().forEach((bb) => {
+                const mat = this.viz[this.getBBId(bb.x, bb.y, bb.z)].material as LineBasicMaterial;
+                mat.opacity = 1;
+            });
+        }
     };
 
     withVisualization = (parent: Object3D) => {
         const positions = [];
-        const colors = [];
 
-        const offset = -this.size / 2;
-        for (let i = 0; i < this.height; i++) {
-            for (let j = 0; j < this.width; j++) {
-                positions.push(offset + j * this.boxWidth, offset + i * this.boxHeight, 0);
-                colors.push(1, 0, 0);
-                positions.push(offset + j * this.boxWidth, offset + (i + 1) * this.boxHeight, 0);
-                colors.push(1, 0, 0);
-                positions.push(offset + (j + 1) * this.boxWidth, offset + (i + 1) * this.boxHeight, 0);
-                colors.push(1, 0, 0);
-                positions.push(offset + (j + 1) * this.boxWidth, offset + i * this.boxHeight, 0);
-                colors.push(1, 0, 0);
-            }
-            positions.push(offset, offset + i * this.boxHeight, 0);
-            colors.push(1, 0, 0);
+        // positions.push(this.boxWidth, 0, 0);
+        // positions.push(0, 0, 0);
+        // positions.push(0, this.boxHeight, 0);
+        // positions.push(this.boxWidth, this.boxHeight, 0);
+        // positions.push(this.boxWidth, 0, 0);
+
+        // if (this.depthDivisions > 1) {
+        //     positions.push(this.boxWidth, 0, -this.boxDepth);
+        //     positions.push(0, 0, -this.boxDepth);
+        //     positions.push(0, this.boxHeight, -this.boxDepth);
+        //     positions.push(this.boxWidth, this.boxHeight, -this.boxDepth);
+        //     positions.push(this.boxWidth, this.boxHeight, 0);
+        //     positions.push(0, this.boxHeight, 0);
+        //     positions.push(0, this.boxHeight, -this.boxDepth);
+        //     positions.push(0, 0, -this.boxDepth);
+        //     positions.push(0, 0, 0);
+        // }
+        positions.push(0, 0, 0);
+        positions.push(this.boxWidth, 0, 0);
+        positions.push(this.boxWidth, this.boxHeight, 0);
+        positions.push(0, this.boxHeight, 0);
+        positions.push(0, 0, 0);
+
+        if (this.depthDivisions > 1) {
+            positions.push(0, 0, -this.boxDepth);
+            positions.push(this.boxWidth, 0, -this.boxDepth);
+            positions.push(this.boxWidth, 0, 0);
+
+            positions.push(this.boxWidth, this.boxHeight, 0);
+            positions.push(this.boxWidth, this.boxHeight, -this.boxDepth);
+            positions.push(this.boxWidth, 0, -this.boxDepth);
+
+            positions.push(this.boxWidth, this.boxHeight, -this.boxDepth);
+            positions.push(0, this.boxHeight, -this.boxDepth);
+            positions.push(0, 0, -this.boxDepth);
+            positions.push(0, this.boxHeight, -this.boxDepth);
+            positions.push(0, this.boxHeight, 0);
         }
 
         const geo = new BufferGeometry();
         geo.setAttribute('position', new Float32BufferAttribute(positions, 3));
-        geo.setAttribute('color', new Float32BufferAttribute(colors, 3));
 
-        const mat = new LineBasicMaterial({ vertexColors: true });
+        this.viz = {};
 
-        this.mesh = new Line(geo, mat).computeLineDistances();
-        this.mesh.scale.multiplyScalar(0.99);
+        const worldWidth = (this.widthDivisions - 1) * this.boxWidth;
+        const worldHeight = (this.heightDivisions - 1) * this.boxHeight;
+        const worldDepth = (this.depthDivisions - 1) * this.boxDepth;
+        for (let k = 0; k < this.depthDivisions; k++) {
+            for (let i = 0; i < this.heightDivisions; i++) {
+                for (let j = 0; j < this.widthDivisions; j++) {
+                    const mat = new LineBasicMaterial({ color: 0x00ff00 });
+                    mat.transparent = true;
+                    mat.opacity = 0;
+                    const box = new Line(geo, mat).computeLineDistances();
+                    box.position.add(
+                        new Vector3(
+                            -worldWidth / 2 + this.boxWidth * j,
+                            -worldHeight / 2 + this.boxHeight * i,
+                            -worldDepth / 2 + this.boxDepth * k
+                        )
+                    );
+                    box.scale.multiplyScalar(0.96);
+                    this.viz[this.getBBId(j, i, k)] = box;
+                }
+            }
+        }
 
-        parent.add(this.mesh);
-
-        colors[1] = 1;
-        colors[2] = 1;
-
-        geo.attributes.color.needsUpdate = true;
+        parent.add(...Object.values(this.viz));
 
         return this;
     };
 
     dispose = () => {
-        this.mesh?.geometry.dispose();
-        (this.mesh?.material as Material).dispose();
+        Object.values(this.viz).forEach((box) => {
+            box.geometry.dispose();
+            (box.material as Material).dispose();
+        });
     };
 }

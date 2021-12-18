@@ -1,3 +1,4 @@
+import { Cone } from './../Shapes/Cone';
 import {
     BufferAttribute,
     InstancedBufferAttribute,
@@ -11,56 +12,12 @@ import {
 
 import { GameObject } from '../types/GameObject';
 import { Shaders } from '../gl/shaders';
+import { SpatialPartitioning } from './../SpatialPartitioning/SpatialPartitioning';
+import { Dimensions, Attribute, Attributes, IAttributes, ParticleSystemOptions } from './ParticleSystemTypes';
 
 const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-export type ParticleSystemOptions = {
-    size?: number;
-    count?: number;
-    particleSize?: number;
-    speed?: number;
-};
-
-type Attribute = {
-    count: number;
-    value: Float64Array | Float32Array | Int32Array | Int16Array | Int8Array | Uint32Array | Uint16Array | Uint8Array;
-};
-
-enum Attributes {
-    position = 'position',
-}
-
-enum IAttributes {
-    aPindex = 'aPindex',
-    aPosition = 'aPosition',
-    aVelocity = 'aVelocity',
-}
-
-enum Dimensions {
-    xy = 2,
-    xz = 1,
-    yz = 0,
-    xyz = -1,
-}
 const DIMENSIONS: Dimensions = Dimensions.xyz;
-
-const cone = (n: number, r: number, h: number) => {
-    const verts: number[] = [];
-
-    const halfHeight = h / 2;
-    const delta = (Math.PI * 2) / n;
-    for (let theta = 0; theta < Math.PI * 2; theta += delta) {
-        verts.push(0, -halfHeight, 0);
-        verts.push(r * Math.sin(theta), -halfHeight, r * Math.cos(theta));
-        verts.push(r * Math.sin(theta + delta), -halfHeight, r * Math.cos(theta + delta));
-
-        verts.push(r * Math.sin(theta + delta), -halfHeight, r * Math.cos(theta + delta));
-        verts.push(r * Math.sin(theta), -halfHeight, r * Math.cos(theta));
-        verts.push(0, halfHeight, 0);
-    }
-
-    return verts;
-};
 
 export class ParticleSystem implements GameObject {
     private count: number;
@@ -76,20 +33,25 @@ export class ParticleSystem implements GameObject {
     private attributes!: { [key in Attributes]: Attribute };
     private iattributes!: { [key in IAttributes]: Attribute };
     private mesh: Mesh;
+    private spatialPartitioning: SpatialPartitioning;
 
-    constructor(scene: Scene, { size = 2, count = 500, particleSize = 0.04, speed = 0.3 }: ParticleSystemOptions = {}) {
-        if (particleSize >= size) {
+    private static readonly DEFAULT_SYSTEM_SIZE = 1;
+    private static readonly DEFAULT_PARTICLE_SIZE = 1;
+    private static readonly DEFAULT_SPEED = 1;
+
+    constructor(scene: Scene, options: ParticleSystemOptions) {
+        this.count = options.count;
+        this.size = options.size ?? ParticleSystem.DEFAULT_SYSTEM_SIZE;
+        this.particleSize = options.particleSize ?? ParticleSystem.DEFAULT_PARTICLE_SIZE;
+        this.speed = options.speed ?? ParticleSystem.DEFAULT_SPEED;
+
+        if (this.particleSize >= this.size) {
             throw new Error('particleSize must be less than size');
         }
 
-        this.size = size;
-        this.count = count;
-        this.particleSize = particleSize;
-        this.speed = speed;
-
         const shaders = Shaders();
         this.shader = shaders.boids;
-        this.shader.uniforms.uSize.value = particleSize;
+        this.shader.uniforms.uSize.value = this.particleSize;
 
         const geometry = new InstancedBufferGeometry();
 
@@ -104,6 +66,10 @@ export class ParticleSystem implements GameObject {
 
         this.mesh = new Mesh(geometry, material);
 
+        this.spatialPartitioning = new SpatialPartitioning(this.size, 20, 20, 20, {
+            trackClusters: true,
+        }).withVisualization(scene);
+
         scene.add(this.mesh);
     }
 
@@ -113,7 +79,7 @@ export class ParticleSystem implements GameObject {
                 count: 3,
                 value:
                     DIMENSIONS === Dimensions.xyz
-                        ? new Float32Array(cone(20, 0.25, 0.75))
+                        ? new Float32Array(Cone(20, 0.25, 0.75))
                         : new Float32Array([
                               // frontside
                               0.5, -0.5, 0, -0.5, -0.5, 0, 0, 0.5, 0,
@@ -121,34 +87,6 @@ export class ParticleSystem implements GameObject {
                               // backside
                               -0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0,
                           ]),
-                // : DIMENSIONS === Dimensions.xz
-                // ? new Float32Array([
-                //       // frontside
-                //       0.5, 0, -0.5, -0.5, 0, -0.5, 0, 0, 0.5,
-
-                //       // backside
-                //       -0.5, 0, -0.5, 0.5, 0, -0.5, 0, 0, 0.5,
-                //   ])
-                // : DIMENSIONS === Dimensions.yz
-                // ? new Float32Array([
-                //       // frontside
-                //       0.5, -0.5, 0, -0.5, -0.5, 0, 0, 0.5, 0,
-
-                //       // backside
-                //       -0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0,
-                //   ])
-                //   : new Float32Array([
-                //         // bottom
-                //         -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0,
-
-                //         // top
-                //         -0.5, -0.5, 0.5, 0.5, -0.5, 0, -0.5, 0.5, 0,
-
-                //         -0.5, -0.5, -0.5, -0.5, 0.5, 0, 0.5, -0.5, 0,
-
-                //         // base
-                //         -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0,
-                //     ]),
             },
         };
 
@@ -283,9 +221,15 @@ export class ParticleSystem implements GameObject {
         geometry.attributes.aVelocity.needsUpdate = true;
     };
 
+    getParticleCluster = (particleId: number) => this.spatialPartitioning.getClusterForPoint(particleId);
+
     // Basic update for funsies
     update = (elapsed: number, tick: number) => {
         this.shader.uniforms.uTick.value = tick;
+
+        this.spatialPartitioning.update(
+            Array.from(this.getParticleIds()).map((id) => ({ id, p: this.getParticlePosition(id) }))
+        );
 
         this.getParticleIds().forEach((particleId) => {
             this.moveParticle(particleId, tick);
@@ -295,5 +239,8 @@ export class ParticleSystem implements GameObject {
     dispose = () => {
         this.mesh.geometry.dispose();
         (this.mesh.material as Material).dispose();
+        this.spatialPartitioning.dispose();
     };
 }
+
+export * from './ParticleSystemTypes';

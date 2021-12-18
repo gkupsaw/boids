@@ -3,7 +3,6 @@ import { Scene, Vector3 } from 'three';
 
 import { GameObject } from '../types/GameObject';
 import { ParticleSystem, ParticleSystemOptions } from '../ParticleSystem/ParticleSystem';
-import { BB, SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 
@@ -11,14 +10,11 @@ type BoidRule = (particleId: number, tick: number) => Vector3;
 
 export class BoidSystem implements GameObject {
     private psys: ParticleSystem;
-    private spatialPartitioning: SpatialPartitioning;
     private centersOfAttraction: Record<string, Vector3>;
     private rules: BoidRule[];
 
-    constructor(scene: Scene, options: ParticleSystemOptions = {}) {
-        this.psys = new ParticleSystem(scene, { ...options, count: 50, particleSize: 0.08, speed: 0.25 });
-
-        this.spatialPartitioning = new SpatialPartitioning(this.psys.getSize(), 20, 20, 0); //.withVisualization(scene);
+    constructor(scene: Scene, options: ParticleSystemOptions) {
+        this.psys = new ParticleSystem(scene, options);
 
         this.centersOfAttraction = {};
 
@@ -27,6 +23,7 @@ export class BoidSystem implements GameObject {
             this.avoidWalls,
             this.separateFromNeighbors,
             this.alignWithNeighbors,
+            this.tendTowardFlockCenter,
         ];
     }
 
@@ -156,57 +153,20 @@ export class BoidSystem implements GameObject {
         return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
     };
 
-    private cohesion = () => {
+    private tendTowardFlockCenter = (particleId: number) => {
         const sensitivity = SETTINGS.cohesion.sensitivity;
         const speed = this.psys.getSpeed();
+        const cluster = this.psys.getParticleCluster(particleId);
 
-        if (sensitivity === 0) return;
+        if (sensitivity === 0 || !cluster) return new Vector3();
 
-        // Initialize spatial partition
-        this.psys.getParticleIds().forEach((particleId) => {
-            const p = this.psys.getParticlePosition(particleId);
-            this.spatialPartitioning.insertParticle(particleId, p);
-        });
+        const rayToCenter = cluster.center.clone().sub(this.psys.getParticlePosition(particleId));
+        const w = rayToCenter.lengthSq();
+        // const w = Math.min(rayToCenter.lengthSq(), 1);
+        const v = rayToCenter.normalize().multiplyScalar(w * sensitivity);
+        const vf = v.add(this.psys.getParticleVelocity(particleId)).normalize().multiplyScalar(speed);
 
-        // Gather clusters
-        const activeBBs = this.spatialPartitioning.getOccupiedBBs();
-        const clusters: BB[][] = [];
-        for (const bb of activeBBs) {
-            if (!bb.visited) {
-                const cluster = this.spatialPartitioning.getCluster(bb);
-
-                if (cluster.length > 1) clusters.push(cluster);
-            }
-        }
-
-        for (const cluster of clusters) {
-            // Calculate cluster centers
-            const center = new Vector3();
-            let pCount = 0;
-            for (const bb of cluster) {
-                pCount += bb.particles.length;
-
-                center.add(
-                    bb.particles.reduce(
-                        (acc, particleId) => acc.add(this.psys.getParticlePosition(particleId)),
-                        new Vector3()
-                    )
-                );
-            }
-            center.multiplyScalar(1 / pCount);
-
-            // Push particles towards cluster center
-            for (const bb of cluster) {
-                for (const particleId of bb.particles) {
-                    const rayToCenter = center.clone().sub(this.psys.getParticlePosition(particleId));
-                    const w = rayToCenter.lengthSq();
-                    // const w = Math.min(rayToCenter.lengthSq(), 1);
-                    const v = rayToCenter.normalize().multiplyScalar(w * sensitivity);
-                    const vf = v.add(this.psys.getParticleVelocity(particleId)).normalize().multiplyScalar(speed);
-                    this.psys.setParticleVelocity(particleId, vf.toArray());
-                }
-            }
-        }
+        return vf;
     };
 
     // API
@@ -239,27 +199,20 @@ export class BoidSystem implements GameObject {
 
     update = (elapsed: number, tick: number) => {
         this.psys.update(elapsed, tick);
-        this.spatialPartitioning.clear();
         const particleIds = this.psys.getParticleIds();
         const speed = this.psys.getSpeed();
 
         particleIds.forEach((particleId) => {
-            const adjustmentDir = this.rules
-                .reduce((acc, rule) => acc.add(rule(particleId, tick)), new Vector3())
-                .normalize()
-                .multiplyScalar(speed);
+            const adjustmentDir = this.rules.reduce((acc, rule) => acc.add(rule(particleId, tick)), new Vector3());
 
             const vi = this.psys.getParticleVelocity(particleId);
             const vf = adjustmentDir.add(vi).normalize().multiplyScalar(speed);
 
             this.psys.setParticleVelocity(particleId, vf.toArray());
         });
-
-        this.cohesion();
     };
 
     dispose = () => {
         this.psys.dispose();
-        this.spatialPartitioning.dispose();
     };
 }

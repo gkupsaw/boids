@@ -177,12 +177,7 @@ export class ThreeGame {
         Object.keys(SETTINGS).forEach((section) => {
             const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
             Object.keys(SETTINGS[section]).forEach((setting) => {
-                folder.add(
-                    SETTINGS[section],
-                    setting,
-                    0,
-                    SETTINGS[section][setting] < 0 ? 1 : SETTINGS[section][setting] * 10
-                );
+                folder.add(SETTINGS[section], setting, 0, 5);
             });
             folder.open();
         });
