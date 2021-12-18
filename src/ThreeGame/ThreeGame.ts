@@ -1,15 +1,5 @@
 import { RendererStats } from './debug/RendererStats';
-import {
-    WebGLRenderer,
-    OrthographicCamera,
-    Scene,
-    HemisphereLight,
-    Color,
-    AxesHelper,
-    Vector3,
-    PerspectiveCamera,
-    DirectionalLight,
-} from 'three';
+import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper, PerspectiveCamera } from 'three';
 import { GUI } from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
@@ -26,14 +16,14 @@ export class ThreeGame {
         dispose: () => void;
     };
 
-    private id: string;
+    private readonly id: string;
     private disposed: boolean;
 
     private renderer!: WebGLRenderer;
     private scene!: Scene;
     private controls!: OrbitControls;
     private camera!: PerspectiveCamera | OrthographicCamera;
-    private gameObjects: GameObject[];
+    private readonly gameObjects: GameObject[];
 
     static readonly SKY_COLOR = '#282c34';
 

@@ -1,34 +1,7 @@
+import { ID, PointData, Point, BB, BBCluster, VizMode } from './SpatialPartitioningTypes';
+import { LineCube } from './../Shapes/LineCube';
+import { LineSquare } from './../Shapes/LineSquare';
 import { Vector3, Object3D, Material, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute } from 'three';
-
-type ID = number;
-
-export type PointData = {
-    id: ID;
-    p: Vector3;
-};
-
-export type Point = PointData & {
-    bb: ID;
-};
-
-export type BB = {
-    id: ID;
-
-    x: number;
-    y: number;
-    z: number;
-
-    points: ID[];
-    cluster: ID;
-
-    visited: boolean;
-};
-
-export type BBCluster = {
-    center: Vector3;
-
-    bbs: BB[];
-};
 
 export class SpatialPartitioning {
     private readonly size: number;
@@ -40,6 +13,8 @@ export class SpatialPartitioning {
     private points: Record<number, Point>;
     private bbs: Record<number, BB>;
     private clusters: BBCluster[];
+
+    private vizMode: VizMode;
     private viz!: Record<number, Line>;
 
     constructor(size: number, width: number, height: number, depth: number, { trackClusters = true } = {}) {
@@ -52,6 +27,8 @@ export class SpatialPartitioning {
         this.bbs = {};
         this.points = {};
         this.clusters = [];
+
+        this.vizMode = VizMode.NONE;
     }
 
     private isValidBBLocation = (x: number, y: number, z: number) => {
@@ -184,7 +161,7 @@ export class SpatialPartitioning {
     getClusterForPoint = (pointId: ID) => this.clusters[this.bbs[this.points[pointId].bb].cluster];
 
     clear = () => {
-        if (this.viz) {
+        if (this.vizMode !== VizMode.NONE) {
             this.getOccupiedBBs().forEach((bb) => {
                 const mat = this.viz[this.getBBId(bb.x, bb.y, bb.z)].material as LineBasicMaterial;
                 mat.opacity = 0;
@@ -206,17 +183,16 @@ export class SpatialPartitioning {
 
         if (this.trackClusters) {
             this.gatherAllClusters();
+        }
 
-            if (this.viz) {
-                console.log(this.clusters);
-                this.clusters.forEach(({ bbs }) => {
-                    bbs.forEach((bb) => {
-                        const mat = this.viz[this.getBBId(bb.x, bb.y, bb.z)].material as LineBasicMaterial;
-                        mat.opacity = 1;
-                    });
+        if (this.vizMode === VizMode.CLUSTER) {
+            this.clusters.forEach(({ bbs }) => {
+                bbs.forEach((bb) => {
+                    const mat = this.viz[this.getBBId(bb.x, bb.y, bb.z)].material as LineBasicMaterial;
+                    mat.opacity = 1;
                 });
-            }
-        } else if (this.viz) {
+            });
+        } else if (this.vizMode === VizMode.BB) {
             this.getOccupiedBBs().forEach((bb) => {
                 const mat = this.viz[this.getBBId(bb.x, bb.y, bb.z)].material as LineBasicMaterial;
                 mat.opacity = 1;
@@ -224,47 +200,15 @@ export class SpatialPartitioning {
         }
     };
 
-    withVisualization = (parent: Object3D) => {
-        const positions = [];
+    withVisualization = (parent: Object3D, vizMode: VizMode) => {
+        if (this.viz) return this;
 
-        // positions.push(this.boxWidth, 0, 0);
-        // positions.push(0, 0, 0);
-        // positions.push(0, this.boxHeight, 0);
-        // positions.push(this.boxWidth, this.boxHeight, 0);
-        // positions.push(this.boxWidth, 0, 0);
+        this.vizMode = vizMode;
 
-        // if (this.depthDivisions > 1) {
-        //     positions.push(this.boxWidth, 0, -this.boxDepth);
-        //     positions.push(0, 0, -this.boxDepth);
-        //     positions.push(0, this.boxHeight, -this.boxDepth);
-        //     positions.push(this.boxWidth, this.boxHeight, -this.boxDepth);
-        //     positions.push(this.boxWidth, this.boxHeight, 0);
-        //     positions.push(0, this.boxHeight, 0);
-        //     positions.push(0, this.boxHeight, -this.boxDepth);
-        //     positions.push(0, 0, -this.boxDepth);
-        //     positions.push(0, 0, 0);
-        // }
-        positions.push(0, 0, 0);
-        positions.push(this.boxWidth, 0, 0);
-        positions.push(this.boxWidth, this.boxHeight, 0);
-        positions.push(0, this.boxHeight, 0);
-        positions.push(0, 0, 0);
-
-        if (this.depthDivisions > 1) {
-            positions.push(0, 0, -this.boxDepth);
-            positions.push(this.boxWidth, 0, -this.boxDepth);
-            positions.push(this.boxWidth, 0, 0);
-
-            positions.push(this.boxWidth, this.boxHeight, 0);
-            positions.push(this.boxWidth, this.boxHeight, -this.boxDepth);
-            positions.push(this.boxWidth, 0, -this.boxDepth);
-
-            positions.push(this.boxWidth, this.boxHeight, -this.boxDepth);
-            positions.push(0, this.boxHeight, -this.boxDepth);
-            positions.push(0, 0, -this.boxDepth);
-            positions.push(0, this.boxHeight, -this.boxDepth);
-            positions.push(0, this.boxHeight, 0);
-        }
+        const positions =
+            this.depthDivisions > 1
+                ? LineCube(this.boxWidth, this.boxHeight, this.boxDepth)
+                : LineSquare(this.boxWidth, this.boxHeight);
 
         const geo = new BufferGeometry();
         geo.setAttribute('position', new Float32BufferAttribute(positions, 3));

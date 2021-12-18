@@ -1,8 +1,10 @@
-import { Cone } from './../Shapes/Cone';
 import {
+    BoxGeometry,
     BufferAttribute,
     InstancedBufferAttribute,
     InstancedBufferGeometry,
+    Line,
+    LineBasicMaterial,
     Material,
     Mesh,
     Scene,
@@ -10,30 +12,34 @@ import {
     Vector3,
 } from 'three';
 
+import { Dimensions, Attribute, Attributes, IAttributes, ParticleSystemOptions } from './ParticleSystemTypes';
+import { VizMode } from '../SpatialPartitioning/SpatialPartitioningTypes';
 import { GameObject } from '../types/GameObject';
+
 import { Shaders } from '../gl/shaders';
 import { SpatialPartitioning } from './../SpatialPartitioning/SpatialPartitioning';
-import { Dimensions, Attribute, Attributes, IAttributes, ParticleSystemOptions } from './ParticleSystemTypes';
+import { Cone } from './../Shapes/Cone';
 
 const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
 const DIMENSIONS: Dimensions = Dimensions.xyz;
 
 export class ParticleSystem implements GameObject {
-    private count: number;
-    private size: number;
-    private particleSize: number;
-    private speed: number;
+    private readonly count: number;
+    private readonly size: number;
+    private readonly particleSize: number;
+    private readonly speed: number;
 
-    private shader: {
+    private readonly shader: {
         uniforms: { [uniformName: string]: any };
         vert: string;
         frag: string;
     };
     private attributes!: { [key in Attributes]: Attribute };
     private iattributes!: { [key in IAttributes]: Attribute };
-    private mesh: Mesh;
-    private spatialPartitioning: SpatialPartitioning;
+    private readonly mesh: Mesh;
+    private readonly spatialPartitioning: SpatialPartitioning;
+    private viz!: Mesh;
 
     private static readonly DEFAULT_SYSTEM_SIZE = 1;
     private static readonly DEFAULT_PARTICLE_SIZE = 1;
@@ -66,9 +72,7 @@ export class ParticleSystem implements GameObject {
 
         this.mesh = new Mesh(geometry, material);
 
-        this.spatialPartitioning = new SpatialPartitioning(this.size, 20, 20, 20, {
-            trackClusters: true,
-        }).withVisualization(scene);
+        this.spatialPartitioning = new SpatialPartitioning(this.size, 20, 20, 20, { trackClusters: true });
 
         scene.add(this.mesh);
     }
@@ -236,9 +240,34 @@ export class ParticleSystem implements GameObject {
         });
     };
 
+    withVisualization = () => {
+        if (this.viz || !this.mesh.parent) return this;
+
+        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.BB);
+
+        const geo = new BoxGeometry(this.size, this.size, this.size);
+
+        const mat = new LineBasicMaterial({ color: 0x000000 });
+        mat.transparent = true;
+        mat.opacity = 0.5;
+
+        this.viz = new Mesh(geo, mat);
+        // this.viz.position.add(new Vector3(-this.size / 2, -this.size / 2, this.size / 2));
+
+        this.mesh.parent.add(this.viz);
+
+        return this;
+    };
+
     dispose = () => {
         this.mesh.geometry.dispose();
         (this.mesh.material as Material).dispose();
+
+        if (this.viz) {
+            this.viz.geometry.dispose();
+            (this.viz.material as Material).dispose();
+        }
+
         this.spatialPartitioning.dispose();
     };
 }

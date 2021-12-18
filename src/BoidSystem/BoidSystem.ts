@@ -9,15 +9,13 @@ import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 type BoidRule = (particleId: number, tick: number) => Vector3;
 
 export class BoidSystem implements GameObject {
-    private psys: ParticleSystem;
-    private centersOfAttraction: Record<string, Vector3>;
-    private rules: BoidRule[];
+    private readonly psys: ParticleSystem;
+    private readonly centersOfAttraction: Record<string, Vector3>;
+    private readonly rules: BoidRule[];
 
     constructor(scene: Scene, options: ParticleSystemOptions) {
         this.psys = new ParticleSystem(scene, options);
-
         this.centersOfAttraction = {};
-
         this.rules = [
             this.seekCentersOfAttraction,
             this.avoidWalls,
@@ -210,6 +208,11 @@ export class BoidSystem implements GameObject {
 
             this.psys.setParticleVelocity(particleId, vf.toArray());
         });
+    };
+
+    withVisualization = () => {
+        this.psys.withVisualization();
+        return this;
     };
 
     dispose = () => {
