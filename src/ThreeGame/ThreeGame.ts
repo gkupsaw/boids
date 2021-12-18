@@ -1,6 +1,17 @@
 import { RendererStats } from './debug/RendererStats';
-import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper } from 'three';
+import {
+    WebGLRenderer,
+    OrthographicCamera,
+    Scene,
+    HemisphereLight,
+    Color,
+    AxesHelper,
+    Vector3,
+    PerspectiveCamera,
+    DirectionalLight,
+} from 'three';
 import { GUI } from 'dat.gui';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import { EventSystem } from './../EventSystem/EventSystem';
 import { SETTINGS } from '../Settings/Settings';
@@ -20,7 +31,8 @@ export class ThreeGame {
 
     private renderer!: WebGLRenderer;
     private scene!: Scene;
-    private camera!: OrthographicCamera;
+    private controls!: OrbitControls;
+    private camera!: PerspectiveCamera | OrthographicCamera;
     private gameObjects: GameObject[];
 
     static readonly SKY_COLOR = '#282c34';
@@ -74,13 +86,16 @@ export class ThreeGame {
     private setupLights = () => {
         const color = 0xffffff;
         const intensity = 1;
-        const light = new HemisphereLight(0xcdcdca, color, intensity);
-        light.position.set(-1, 2, 4);
-        this.scene.add(light);
+        const sun = new HemisphereLight(0xcdcdca, color, intensity);
+        sun.position.set(-1, 2, 4);
+        this.scene.add(sun);
     };
 
     private setupCamera = () => {
-        this.camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        // this.camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        this.camera = new PerspectiveCamera();
+        this.camera.position.z += 2;
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.scene.add(this.camera);
     };
 
@@ -177,7 +192,6 @@ export class ThreeGame {
 
     withRendererStats = () => {
         this.rendererStats = RendererStats();
-        console.log(this.rendererStats);
 
         return this;
     };

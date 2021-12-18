@@ -36,6 +36,32 @@ enum IAttributes {
     aVelocity = 'aVelocity',
 }
 
+enum Dimensions {
+    xy = 2,
+    xz = 1,
+    yz = 0,
+    xyz = -1,
+}
+const DIMENSIONS: Dimensions = Dimensions.xyz;
+
+const cone = (n: number, r: number, h: number) => {
+    const verts: number[] = [];
+
+    const halfHeight = h / 2;
+    const delta = (Math.PI * 2) / n;
+    for (let theta = 0; theta < Math.PI * 2; theta += delta) {
+        verts.push(0, -halfHeight, 0);
+        verts.push(r * Math.sin(theta), -halfHeight, r * Math.cos(theta));
+        verts.push(r * Math.sin(theta + delta), -halfHeight, r * Math.cos(theta + delta));
+
+        verts.push(r * Math.sin(theta + delta), -halfHeight, r * Math.cos(theta + delta));
+        verts.push(r * Math.sin(theta), -halfHeight, r * Math.cos(theta));
+        verts.push(0, halfHeight, 0);
+    }
+
+    return verts;
+};
+
 export class ParticleSystem implements GameObject {
     private count: number;
     private size: number;
@@ -85,11 +111,44 @@ export class ParticleSystem implements GameObject {
         this.attributes = {
             [Attributes.position]: {
                 count: 3,
-                value: new Float32Array([
-                    -0.5, 0, 0, 0.5, 0, 0, -0.5, 0.5, 0,
+                value:
+                    DIMENSIONS === Dimensions.xyz
+                        ? new Float32Array(cone(20, 0.25, 0.75))
+                        : new Float32Array([
+                              // frontside
+                              0.5, -0.5, 0, -0.5, -0.5, 0, 0, 0.5, 0,
 
-                    0.5, 0, 0, -0.5, 0, 0, -0.5, -0.5, 0,
-                ]),
+                              // backside
+                              -0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0,
+                          ]),
+                // : DIMENSIONS === Dimensions.xz
+                // ? new Float32Array([
+                //       // frontside
+                //       0.5, 0, -0.5, -0.5, 0, -0.5, 0, 0, 0.5,
+
+                //       // backside
+                //       -0.5, 0, -0.5, 0.5, 0, -0.5, 0, 0, 0.5,
+                //   ])
+                // : DIMENSIONS === Dimensions.yz
+                // ? new Float32Array([
+                //       // frontside
+                //       0.5, -0.5, 0, -0.5, -0.5, 0, 0, 0.5, 0,
+
+                //       // backside
+                //       -0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0,
+                //   ])
+                //   : new Float32Array([
+                //         // bottom
+                //         -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0,
+
+                //         // top
+                //         -0.5, -0.5, 0.5, 0.5, -0.5, 0, -0.5, 0.5, 0,
+
+                //         -0.5, -0.5, -0.5, -0.5, 0.5, 0, 0.5, -0.5, 0,
+
+                //         // base
+                //         -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0,
+                //     ]),
             },
         };
 
@@ -115,26 +174,27 @@ export class ParticleSystem implements GameObject {
             },
         };
 
-        const b = true;
-        for (let i = 0; i < this.count; i++) {
-            this.iattributes[IAttributes.aPosition].value[i * 3 + 0] = b
-                ? randInRange(this.lowerBoundary, this.upperBoundary)
-                : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
-            // : (Math.floor(randInRange(0, 2)) === 0 ? 1 : -1) *
-            //   randInRange(this.upperBoundary * 0.5, this.upperBoundary);
-            this.iattributes[IAttributes.aPosition].value[i * 3 + 1] = b
-                ? randInRange(this.lowerBoundary, this.upperBoundary)
-                : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
-            // : (Math.floor(randInRange(0, 2)) === 0 ? 1 : -1) *
-            //   randInRange(this.upperBoundary * 0.5, this.upperBoundary);
+        const aPindex = this.iattributes[IAttributes.aPindex];
+        const aPosition = this.iattributes[IAttributes.aPosition];
+        const aVelocity = this.iattributes[IAttributes.aVelocity];
 
+        const coverWholeSpace = true;
+        for (let i = 0; i < this.count; i++) {
+            aPindex.value[i] = i;
+
+            // TODO: automate dimension change (VectorX)
             const v = new Vector3(1, 0, 0)
                 .applyAxisAngle(new Vector3(0, 0, 1), Math.random() * 2 * Math.PI)
                 .multiplyScalar(this.speed);
-            this.iattributes[IAttributes.aVelocity].value[i * 3] = v.x;
-            this.iattributes[IAttributes.aVelocity].value[i * 3 + 1] = v.y;
 
-            this.iattributes[IAttributes.aPindex].value[i] = i;
+            for (let dim = 0; dim < aPosition.count; dim++) {
+                if (dim === DIMENSIONS) continue;
+
+                aPosition.value[i * aPosition.count + dim] = coverWholeSpace
+                    ? randInRange(this.lowerBoundary, this.upperBoundary)
+                    : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
+                aVelocity.value[i * aVelocity.count + dim] = v.getComponent(dim);
+            }
         }
 
         for (const iattributeName of Object.keys(IAttributes)) {
@@ -143,18 +203,18 @@ export class ParticleSystem implements GameObject {
         }
     };
 
-    private accessAttribute = (attr: Attributes) => {
-        return this.attributes[attr].value;
-    };
-
     private accessIAttribute = (iattr: IAttributes) => {
         return this.iattributes[iattr].value;
+    };
+
+    private getIAttributeDimensionality = (iattr: IAttributes) => {
+        return this.iattributes[iattr].count;
     };
 
     private moveParticle = (particleId: number, tick: number) => {
         const p = this.getParticlePosition(particleId);
         const v = this.getParticleVelocity(particleId);
-        this.setParticlePosition(particleId, p.add(v.multiplyScalar(tick)));
+        this.setParticlePosition(particleId, p.add(v.multiplyScalar(tick)).toArray());
     };
 
     get lowerBoundary() {
@@ -186,37 +246,39 @@ export class ParticleSystem implements GameObject {
     };
 
     getParticlePosition = (particleId: number) => {
-        const offset = particleId * 3;
+        const offset = particleId * this.getIAttributeDimensionality(IAttributes.aPosition);
         const positions = this.accessIAttribute(IAttributes.aPosition);
         return new Vector3(positions[offset], positions[offset + 1], positions[offset + 2]);
     };
 
-    setParticlePosition = (particleId: number, p: Vector3) => {
-        const offset = particleId * 3;
+    setParticlePosition = (particleId: number, p: number[]) => {
+        const positionDimensionality = this.getIAttributeDimensionality(IAttributes.aPosition);
+        const offset = particleId * positionDimensionality;
         const positions = this.accessIAttribute(IAttributes.aPosition);
         const geometry = this.mesh.geometry;
 
-        positions[offset] = p.x;
-        positions[offset + 1] = p.y;
-        positions[offset + 2] = p.z;
+        for (let i = 0; i < positionDimensionality; i++) {
+            positions[offset + i] = p[i];
+        }
 
         geometry.attributes.aPosition.needsUpdate = true;
     };
 
     getParticleVelocity = (particleId: number) => {
-        const offset = particleId * 3;
+        const offset = particleId * this.getIAttributeDimensionality(IAttributes.aVelocity);
         const velocities = this.accessIAttribute(IAttributes.aVelocity);
         return new Vector3(velocities[offset], velocities[offset + 1], velocities[offset + 2]);
     };
 
-    setParticleVelocity = (particleId: number, v: Vector3) => {
-        const offset = particleId * 3;
+    setParticleVelocity = (particleId: number, v: number[]) => {
+        const velocityDimensionality = this.getIAttributeDimensionality(IAttributes.aVelocity);
+        const offset = particleId * velocityDimensionality;
         const velocities = this.accessIAttribute(IAttributes.aVelocity);
         const geometry = this.mesh.geometry;
 
-        velocities[offset] = v.x;
-        velocities[offset + 1] = v.y;
-        velocities[offset + 2] = v.z;
+        for (let i = 0; i < velocityDimensionality; i++) {
+            velocities[offset + i] = v[i];
+        }
 
         geometry.attributes.aVelocity.needsUpdate = true;
     };

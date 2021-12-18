@@ -20,7 +20,7 @@ class App extends React.Component {
     }
 
     componentDidMount = () => {
-        this.game = new ThreeGame().withUI();
+        this.game = new ThreeGame().withUI().withDebug();
         this.esys = new EventSystem(document.body);
         // this.esys = new EventSystem(this.game.getRenderer().domElement);
 
@@ -44,12 +44,11 @@ class App extends React.Component {
 
     render() {
         return (
-            <div className='App' style={{ backgroundColor: ThreeGame.SKY_COLOR }}>
+            <div style={{ backgroundColor: ThreeGame.SKY_COLOR }}>
                 <canvas
                     id={CanvasUtils.CANVAS_ID}
                     width={document.body.clientWidth}
                     height={document.body.clientHeight}
-                    className='gl-canvas'
                 />
             </div>
         );

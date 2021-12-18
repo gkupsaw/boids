@@ -13,11 +13,11 @@ export type Settings = {
 export const SETTINGS: Settings = {
     [SettingSection.attraction]: {
         awarenessFactor: 3,
-        sensitivity: 0.05,
+        sensitivity: 0.0,
     },
     [SettingSection.obstacles]: {
         awarenessFactor: 2,
-        sensitivity: 0.05,
+        sensitivity: 0.01,
     },
     [SettingSection.separation]: {
         awarenessFactor: 1,

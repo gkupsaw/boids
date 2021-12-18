@@ -1,14 +1,8 @@
-import { Shaders } from './../gl/shaders/index';
 import {
     Vector3,
     Object3D,
-    MeshBasicMaterial,
     Material,
     Line,
-    InstancedBufferGeometry,
-    BufferAttribute,
-    InstancedBufferAttribute,
-    ShaderMaterial,
     Mesh,
     LineBasicMaterial,
     BufferGeometry,
@@ -18,6 +12,7 @@ import {
 export type BB = {
     x: number;
     y: number;
+    z: number;
     particles: number[];
 
     visited: boolean;
@@ -27,22 +22,32 @@ export class SpatialPartitioning {
     private readonly size: number;
     private readonly width: number;
     private readonly height: number;
+    private readonly depth: number;
     private bbs: Record<number, BB>;
     private mesh!: Line | Mesh;
 
-    constructor(size: number, width: number, height: number) {
+    constructor(size: number, width: number, height: number, depth: number) {
         this.size = size;
         this.width = width;
         this.height = height;
+        this.depth = depth;
         this.bbs = {};
     }
 
     get boxWidth() {
         return this.size / this.width;
     }
+
     get boxHeight() {
         return this.size / this.height;
     }
+
+    get boxDepth() {
+        return this.size / this.depth;
+    }
+
+    private isBBWithinSpace = (x: number, y: number, z: number) =>
+        x >= 0 && x < this.width && y >= 0 && y < this.height && z >= 0 && z < this.depth;
 
     getSize = () => this.size;
 
@@ -50,11 +55,14 @@ export class SpatialPartitioning {
 
     getHeight = () => this.height;
 
-    getBB = (x: number, y: number) => this.bbs[this.getBBIdFromPosition(x, y)];
+    getDepth = () => this.depth;
 
-    getBBId = (bb: BB) => this.getBBIdFromPosition(bb.x, bb.y);
+    getBB = (x: number, y: number, z: number) => this.bbs[this.getBBIdFromPosition(x, y, z)];
 
-    getBBIdFromPosition = (x: number, y: number): number => x + y * this.width;
+    getBBId = (bb: BB) => this.getBBIdFromPosition(bb.x, bb.y, bb.z);
+
+    getBBIdFromPosition = (x: number, y: number, z: number): number =>
+        x + y * this.width + z * this.width * this.height;
 
     getOccupiedBBs = () => Object.values(this.bbs);
 
@@ -64,13 +72,15 @@ export class SpatialPartitioning {
         const boxY =
             Math.min(this.height / 2 - 1, Math.max(-this.height / 2, Math.floor(p.y / this.boxHeight))) +
             this.height / 2;
+        const boxZ =
+            Math.min(this.depth / 2 - 1, Math.max(-this.depth / 2, Math.floor(p.y / this.boxDepth))) + this.depth / 2;
 
-        const id = this.getBBIdFromPosition(boxX, boxY);
+        const id = this.getBBIdFromPosition(boxX, boxY, boxZ);
 
         if (this.bbs[id]) {
             this.bbs[id].particles.push(particleId);
         } else {
-            this.bbs[id] = { x: boxX, y: boxY, particles: [particleId], visited: false };
+            this.bbs[id] = { x: boxX, y: boxY, z: boxZ, particles: [particleId], visited: false };
         }
     };
 
@@ -85,28 +95,27 @@ export class SpatialPartitioning {
             if (currBB) {
                 const currX = currBB.x;
                 const currY = currBB.y;
+                const currZ = currBB.z;
 
-                const neighbors = [
-                    [currX + 1, currY],
-                    [currX - 1, currY],
-                    [currX, currY + 1],
-                    [currX, currY - 1],
+                const neighbors: [number, number, number][] = [
+                    [currX + 1, currY, currZ],
+                    [currX - 1, currY, currZ],
+                    [currX, currY + 1, currZ],
+                    [currX, currY - 1, currZ],
+                    [currX, currY, currZ + 1],
+                    [currX, currY, currZ - 1],
                 ];
 
-                for (const [neighborX, neighborY] of neighbors) {
-                    const neighbor = this.bbs[neighborX + neighborY * this.height];
+                for (const [neighborX, neighborY, neighborZ] of neighbors) {
+                    if (this.isBBWithinSpace(neighborX, neighborY, neighborZ)) {
+                        const neighborId = this.getBBIdFromPosition(neighborX, neighborY, neighborZ);
+                        const neighbor = this.bbs[neighborId];
 
-                    if (
-                        neighbor &&
-                        !neighbor.visited &&
-                        neighborX >= 0 &&
-                        neighborX < this.width &&
-                        neighborY >= 0 &&
-                        neighborY < this.height
-                    ) {
-                        valid.push(neighbor);
-                        neighbor.visited = true;
-                        stack.push(neighbor);
+                        if (neighbor && !neighbor.visited) {
+                            valid.push(neighbor);
+                            neighbor.visited = true;
+                            stack.push(neighbor);
+                        }
                     }
                 }
             }

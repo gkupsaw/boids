@@ -16,9 +16,9 @@ export class BoidSystem implements GameObject {
     private rules: BoidRule[];
 
     constructor(scene: Scene, options: ParticleSystemOptions = {}) {
-        this.psys = new ParticleSystem(scene, { ...options, count: 400, particleSize: 0.04 });
+        this.psys = new ParticleSystem(scene, { ...options, count: 50, particleSize: 0.08, speed: 0.25 });
 
-        this.spatialPartitioning = new SpatialPartitioning(this.psys.getSize(), 20, 20).withVisualization(scene);
+        this.spatialPartitioning = new SpatialPartitioning(this.psys.getSize(), 20, 20, 0); //.withVisualization(scene);
 
         this.centersOfAttraction = {};
 
@@ -172,7 +172,7 @@ export class BoidSystem implements GameObject {
         const activeBBs = this.spatialPartitioning.getOccupiedBBs();
         const clusters: BB[][] = [];
         for (const bb of activeBBs) {
-            if (!this.spatialPartitioning.getBB(bb.x, bb.y).visited) {
+            if (!bb.visited) {
                 const cluster = this.spatialPartitioning.getCluster(bb);
 
                 if (cluster.length > 1) clusters.push(cluster);
@@ -203,7 +203,7 @@ export class BoidSystem implements GameObject {
                     // const w = Math.min(rayToCenter.lengthSq(), 1);
                     const v = rayToCenter.normalize().multiplyScalar(w * sensitivity);
                     const vf = v.add(this.psys.getParticleVelocity(particleId)).normalize().multiplyScalar(speed);
-                    this.psys.setParticleVelocity(particleId, vf);
+                    this.psys.setParticleVelocity(particleId, vf.toArray());
                 }
             }
         }
@@ -252,7 +252,7 @@ export class BoidSystem implements GameObject {
             const vi = this.psys.getParticleVelocity(particleId);
             const vf = adjustmentDir.add(vi).normalize().multiplyScalar(speed);
 
-            this.psys.setParticleVelocity(particleId, vf);
+            this.psys.setParticleVelocity(particleId, vf.toArray());
         });
 
         this.cohesion();
