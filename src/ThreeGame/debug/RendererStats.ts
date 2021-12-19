@@ -2,6 +2,12 @@
 
 import { WebGLRenderer } from 'three';
 
+export type RendererStatsObject = {
+    domElement: HTMLElement;
+    update: (renderer: WebGLRenderer) => void;
+    dispose: () => void;
+};
+
 /**
  * provide info on THREE.WebGLRenderer
  *

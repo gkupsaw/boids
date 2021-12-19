@@ -1,4 +1,5 @@
 export enum SettingSection {
+    global = 'global',
     attraction = 'attraction',
     obstacles = 'obstacles',
     separation = 'separation',
@@ -7,13 +8,17 @@ export enum SettingSection {
 }
 
 export type Settings = {
-    [index: string]: { [index: string]: any };
+    [index in SettingSection]: { [index: string]: any };
 };
 
 export const SETTINGS: Settings = {
-    [SettingSection.attraction]: {
+    [SettingSection.global]: {
         awarenessFactor: 3,
         sensitivity: 0.0,
+    },
+    [SettingSection.attraction]: {
+        awarenessFactor: 3,
+        sensitivity: 0.01,
     },
     [SettingSection.obstacles]: {
         awarenessFactor: 2,
@@ -25,7 +30,7 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.alignment]: {
         awarenessFactor: 1,
-        sensitivity: 0.01,
+        sensitivity: 1.5,
     },
     [SettingSection.cohesion]: {
         awarenessFactor: 1,

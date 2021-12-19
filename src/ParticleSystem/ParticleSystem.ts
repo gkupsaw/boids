@@ -3,12 +3,13 @@ import {
     BufferAttribute,
     InstancedBufferAttribute,
     InstancedBufferGeometry,
-    Line,
     LineBasicMaterial,
     Material,
     Mesh,
+    MeshBasicMaterial,
     Scene,
     ShaderMaterial,
+    SphereGeometry,
     Vector3,
 } from 'three';
 
@@ -17,8 +18,8 @@ import { VizMode } from '../SpatialPartitioning/SpatialPartitioningTypes';
 import { GameObject } from '../types/GameObject';
 
 import { Shaders } from '../gl/shaders';
-import { SpatialPartitioning } from './../SpatialPartitioning/SpatialPartitioning';
-import { Cone } from './../Shapes/Cone';
+import { SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
+import { Cone } from '../Shapes/Cone';
 
 const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
@@ -39,7 +40,10 @@ export class ParticleSystem implements GameObject {
     private iattributes!: { [key in IAttributes]: Attribute };
     private readonly mesh: Mesh;
     private readonly spatialPartitioning: SpatialPartitioning;
+
+    // debug
     private viz!: Mesh;
+    private highlight!: Mesh;
 
     private static readonly DEFAULT_SYSTEM_SIZE = 1;
     private static readonly DEFAULT_PARTICLE_SIZE = 1;
@@ -252,11 +256,23 @@ export class ParticleSystem implements GameObject {
         mat.opacity = 0.5;
 
         this.viz = new Mesh(geo, mat);
-        // this.viz.position.add(new Vector3(-this.size / 2, -this.size / 2, this.size / 2));
 
         this.mesh.parent.add(this.viz);
 
         return this;
+    };
+
+    highlightParticle = (particleId: number) => {
+        if (!this.highlight) {
+            const mat = new MeshBasicMaterial({ color: 0xff0000 });
+            mat.transparent = true;
+            mat.opacity = 0.5;
+
+            this.highlight = new Mesh(new SphereGeometry(this.particleSize, 10, 10), mat);
+            this.mesh.parent?.add(this.highlight);
+        }
+
+        this.highlight.position.copy(this.getParticlePosition(particleId));
     };
 
     dispose = () => {
@@ -266,6 +282,11 @@ export class ParticleSystem implements GameObject {
         if (this.viz) {
             this.viz.geometry.dispose();
             (this.viz.material as Material).dispose();
+        }
+
+        if (this.highlight) {
+            this.highlight.geometry.dispose();
+            (this.highlight.material as Material).dispose();
         }
 
         this.spatialPartitioning.dispose();

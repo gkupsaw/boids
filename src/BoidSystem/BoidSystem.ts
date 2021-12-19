@@ -1,27 +1,31 @@
-import { EventSystem } from './../EventSystem/EventSystem';
 import { Scene, Vector3 } from 'three';
 
 import { GameObject } from '../types/GameObject';
 import { ParticleSystem, ParticleSystemOptions } from '../ParticleSystem/ParticleSystem';
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
+import { BoidStats, BoidStatsObject } from './debug/BoidStats';
+import { EventSystem } from './../EventSystem/EventSystem';
 
-type BoidRule = (particleId: number, tick: number) => Vector3;
+type BoidForce = (particleId: number, tick: number) => Vector3;
 
 export class BoidSystem implements GameObject {
     private readonly psys: ParticleSystem;
     private readonly centersOfAttraction: Record<string, Vector3>;
-    private readonly rules: BoidRule[];
+    private readonly forces: { name: string; force: BoidForce }[];
+
+    private boidStats!: BoidStatsObject;
+    private boidOfInterest!: number;
 
     constructor(scene: Scene, options: ParticleSystemOptions) {
         this.psys = new ParticleSystem(scene, options);
         this.centersOfAttraction = {};
-        this.rules = [
-            this.seekCentersOfAttraction,
-            this.avoidWalls,
-            this.separateFromNeighbors,
-            this.alignWithNeighbors,
-            this.tendTowardFlockCenter,
+        this.forces = [
+            { name: 'Attraction', force: this.seekCentersOfAttraction },
+            { name: 'Obstacles', force: this.avoidWalls },
+            { name: 'Separation', force: this.separateFromNeighbors },
+            { name: 'Alignment', force: this.alignWithNeighbors },
+            { name: 'Cohesion', force: this.tendTowardFlockCenter },
         ];
     }
 
@@ -34,7 +38,7 @@ export class BoidSystem implements GameObject {
         const p = this.psys.getParticlePosition(particleId);
 
         const awareness = SETTINGS.attraction.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.attraction.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.attraction.sensitivity;
 
         let n = 0;
         const dir = new Vector3();
@@ -60,7 +64,7 @@ export class BoidSystem implements GameObject {
         const upperBoundary = this.psys.upperBoundary;
 
         const awareness = SETTINGS.obstacles.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.obstacles.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.obstacles.sensitivity;
 
         const pi = this.psys.getParticlePosition(particleId);
         const vi = this.psys.getParticleVelocity(particleId);
@@ -94,7 +98,7 @@ export class BoidSystem implements GameObject {
         const p = this.psys.getParticlePosition(particleId);
 
         const awareness = SETTINGS.separation.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.separation.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.separation.sensitivity;
 
         let n = 0;
         const dir = new Vector3();
@@ -108,7 +112,6 @@ export class BoidSystem implements GameObject {
 
                 if (d < awareness) {
                     const avoidanceDir = p.clone().sub(pOther).normalize();
-                    // this might be redundant
                     dir.add(avoidanceDir.multiplyScalar(1 / d));
                     n++;
                 }
@@ -126,7 +129,7 @@ export class BoidSystem implements GameObject {
         const p = this.psys.getParticlePosition(particleId);
 
         const awareness = SETTINGS.alignment.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.alignment.sensitivity * 0.75;
+        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.alignment.sensitivity;
 
         let n = 0;
         const dir = new Vector3();
@@ -152,7 +155,7 @@ export class BoidSystem implements GameObject {
     };
 
     private tendTowardFlockCenter = (particleId: number) => {
-        const sensitivity = SETTINGS.cohesion.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.cohesion.sensitivity;
         const speed = this.psys.getSpeed();
         const cluster = this.psys.getParticleCluster(particleId);
 
@@ -201,21 +204,54 @@ export class BoidSystem implements GameObject {
         const speed = this.psys.getSpeed();
 
         particleIds.forEach((particleId) => {
-            const adjustmentDir = this.rules.reduce((acc, rule) => acc.add(rule(particleId, tick)), new Vector3());
+            const indivForces: { name: string; val: Vector3 }[] = [];
+            const adjustmentDir = this.forces.reduce((acc, { name, force }) => {
+                const val = force(particleId, tick);
+
+                if (this.boidStats) {
+                    if (particleId === this.boidOfInterest) {
+                        indivForces.push({ name: name, val });
+                    }
+                }
+
+                return acc.add(val);
+            }, new Vector3());
 
             const vi = this.psys.getParticleVelocity(particleId);
             const vf = adjustmentDir.add(vi).normalize().multiplyScalar(speed);
 
             this.psys.setParticleVelocity(particleId, vf.toArray());
+
+            if (this.boidStats) {
+                if (particleId === this.boidOfInterest) {
+                    this.psys.highlightParticle(particleId);
+                    this.boidStats.update({
+                        id: particleId,
+                        p: this.psys.getParticlePosition(particleId),
+                        v: vf,
+                        forces: indivForces,
+                    });
+                }
+            }
         });
     };
 
     withVisualization = () => {
         this.psys.withVisualization();
+
+        return this;
+    };
+
+    withDebug = (boidOfInterest: number = 0) => {
+        this.boidStats = BoidStats();
+        this.boidOfInterest = boidOfInterest;
+
         return this;
     };
 
     dispose = () => {
         this.psys.dispose();
+
+        this.boidStats.dispose();
     };
 }

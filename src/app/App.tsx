@@ -30,7 +30,7 @@ class App extends React.Component {
             count: 50,
             particleSize: 0.08,
             speed: 0.25,
-        }).withVisualization();
+        }).withDebug(); //.withVisualization();
         const unsubscribeBsysFromEvents = bsys.subscribeToEvents(this.esys);
         this.cleanup.push(unsubscribeBsysFromEvents);
         this.game.addGameObject(bsys);

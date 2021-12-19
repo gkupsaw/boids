@@ -244,9 +244,11 @@ export class SpatialPartitioning {
     };
 
     dispose = () => {
-        Object.values(this.viz).forEach((box) => {
-            box.geometry.dispose();
-            (box.material as Material).dispose();
-        });
+        if (this.viz) {
+            Object.values(this.viz).forEach((box) => {
+                box.geometry.dispose();
+                (box.material as Material).dispose();
+            });
+        }
     };
 }

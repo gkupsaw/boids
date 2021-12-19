@@ -1,20 +1,16 @@
-import { RendererStats } from './debug/RendererStats';
 import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper, PerspectiveCamera } from 'three';
 import { GUI } from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import { EventSystem } from './../EventSystem/EventSystem';
-import { SETTINGS } from '../Settings/Settings';
+import { SETTINGS, SettingSection } from '../Settings/Settings';
 import { GameObject } from './../types/GameObject';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
+import { RendererStats, RendererStatsObject } from './debug/RendererStats';
 
 export class ThreeGame {
     private gui!: GUI;
-    private rendererStats!: {
-        domElement: HTMLElement;
-        update: (renderer: WebGLRenderer) => void;
-        dispose: () => void;
-    };
+    private rendererStats!: RendererStatsObject;
 
     private readonly id: string;
     private disposed: boolean;
@@ -164,7 +160,7 @@ export class ThreeGame {
     withUI = () => {
         this.gui = new GUI();
 
-        Object.keys(SETTINGS).forEach((section) => {
+        Object.values(SettingSection).forEach((section) => {
             const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
             Object.keys(SETTINGS[section]).forEach((setting) => {
                 folder.add(SETTINGS[section], setting, 0, 5);
@@ -183,7 +179,6 @@ export class ThreeGame {
 
     withDebug = () => {
         this.scene.add(new AxesHelper(1));
-        this.withRendererStats();
 
         return this;
     };
