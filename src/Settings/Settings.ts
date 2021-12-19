@@ -18,11 +18,11 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.attraction]: {
         awarenessFactor: 3,
-        sensitivity: 0.01,
+        sensitivity: 0,
     },
     [SettingSection.obstacles]: {
         awarenessFactor: 2,
-        sensitivity: 0.01,
+        sensitivity: 0.3,
     },
     [SettingSection.separation]: {
         awarenessFactor: 1,
@@ -30,10 +30,10 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.alignment]: {
         awarenessFactor: 1,
-        sensitivity: 1.5,
+        sensitivity: 0.01,
     },
     [SettingSection.cohesion]: {
-        awarenessFactor: 1,
-        sensitivity: 0.01,
+        awarenessFactor: 3,
+        sensitivity: 0.5,
     },
 };

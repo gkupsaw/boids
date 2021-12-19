@@ -247,17 +247,17 @@ export class ParticleSystem implements GameObject {
     withVisualization = () => {
         if (this.viz || !this.mesh.parent) return this;
 
-        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.BB);
+        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER);
 
-        const geo = new BoxGeometry(this.size, this.size, this.size);
+        // const geo = new BoxGeometry(this.size, this.size, this.size);
 
-        const mat = new LineBasicMaterial({ color: 0x000000 });
-        mat.transparent = true;
-        mat.opacity = 0.5;
+        // const mat = new LineBasicMaterial({ color: 0x000000 });
+        // mat.transparent = true;
+        // mat.opacity = 0.5;
 
-        this.viz = new Mesh(geo, mat);
+        // this.viz = new Mesh(geo, mat);
 
-        this.mesh.parent.add(this.viz);
+        // this.mesh.parent.add(this.viz);
 
         return this;
     };
