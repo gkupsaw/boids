@@ -13,9 +13,17 @@ import {
     Vector3,
 } from 'three';
 
-import { Dimensions, Attribute, Attributes, IAttributes, ParticleSystemOptions } from './ParticleSystemTypes';
+import {
+    Attribute,
+    Attributes,
+    IAttributes,
+    ParticleSystemOptions,
+    ParticleSystemCopyOptions,
+} from './ParticleSystemTypes';
 import { VizMode } from '../SpatialPartitioning/SpatialPartitioningTypes';
 import { GameObject } from '../types/GameObject';
+import { Dimensions } from '../types/Dimensions';
+import { SETTINGS } from '../Settings/Settings';
 
 import { Shaders } from '../gl/shaders';
 import { SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
@@ -23,9 +31,7 @@ import { Cone } from '../Shapes/Cone';
 
 const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-const DIMENSIONS: Dimensions = Dimensions.xyz;
-
-export class ParticleSystem implements GameObject {
+export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
     private readonly size: number;
     private readonly particleSize: number;
@@ -86,7 +92,7 @@ export class ParticleSystem implements GameObject {
             [Attributes.position]: {
                 count: 3,
                 value:
-                    DIMENSIONS === Dimensions.xyz
+                    SETTINGS.global.dimensions === Dimensions.xyz
                         ? new Float32Array(Cone(20, 0.25, 0.75))
                         : new Float32Array([
                               // frontside
@@ -134,7 +140,7 @@ export class ParticleSystem implements GameObject {
                 .multiplyScalar(this.speed);
 
             for (let dim = 0; dim < aPosition.count; dim++) {
-                if (dim === DIMENSIONS) continue;
+                if (dim === SETTINGS.global.dimensions) continue;
 
                 aPosition.value[i * aPosition.count + dim] = coverWholeSpace
                     ? randInRange(this.lowerBoundary, this.upperBoundary)
@@ -249,15 +255,15 @@ export class ParticleSystem implements GameObject {
 
         this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER);
 
-        // const geo = new BoxGeometry(this.size, this.size, this.size);
+        const geo = new BoxGeometry(this.size, this.size, this.size);
 
-        // const mat = new LineBasicMaterial({ color: 0x000000 });
-        // mat.transparent = true;
-        // mat.opacity = 0.5;
+        const mat = new LineBasicMaterial({ color: 0x000000 });
+        mat.transparent = true;
+        mat.opacity = 0.5;
 
-        // this.viz = new Mesh(geo, mat);
+        this.viz = new Mesh(geo, mat);
 
-        // this.mesh.parent.add(this.viz);
+        this.mesh.parent.add(this.viz);
 
         return this;
     };
@@ -275,18 +281,40 @@ export class ParticleSystem implements GameObject {
         this.highlight.position.copy(this.getParticlePosition(particleId));
     };
 
+    copy = () => {
+        const scene = this.mesh.parent as Scene;
+
+        this.dispose();
+
+        const options: ParticleSystemCopyOptions = {
+            count: this.count,
+            size: this.size,
+            particleSize: this.particleSize,
+            speed: this.speed,
+        };
+
+        if (!scene) {
+            throw new Error('No scene parent found for mesh');
+        }
+
+        return new ParticleSystem(scene, options);
+    };
+
     dispose = () => {
         this.mesh.geometry.dispose();
         (this.mesh.material as Material).dispose();
+        this.mesh.removeFromParent();
 
         if (this.viz) {
             this.viz.geometry.dispose();
             (this.viz.material as Material).dispose();
+            this.viz.removeFromParent();
         }
 
         if (this.highlight) {
             this.highlight.geometry.dispose();
             (this.highlight.material as Material).dispose();
+            this.highlight.removeFromParent();
         }
 
         this.spatialPartitioning.dispose();

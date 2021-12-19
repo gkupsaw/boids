@@ -1,7 +1,7 @@
 import { Scene, Vector3 } from 'three';
 
 import { GameObject } from '../types/GameObject';
-import { ParticleSystem, ParticleSystemOptions } from '../ParticleSystem/ParticleSystem';
+import { ParticleSystem, ParticleSystemOptions, ParticleSystemCopyOptions } from '../ParticleSystem/ParticleSystem';
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { BoidStats, BoidStatsObject } from './debug/BoidStats';
@@ -9,7 +9,7 @@ import { EventSystem } from './../EventSystem/EventSystem';
 
 type BoidForce = (particleId: number, tick: number) => Vector3;
 
-export class BoidSystem implements GameObject {
+export class BoidSystem implements GameObject<BoidSystem> {
     private readonly psys: ParticleSystem;
     private readonly centersOfAttraction: Record<string, Vector3>;
     private readonly forces: { name: string; force: BoidForce }[];
@@ -249,9 +249,28 @@ export class BoidSystem implements GameObject {
         return this;
     };
 
+    copy = () => {
+        const scene = this.psys.getMesh().parent as Scene;
+
+        const options: ParticleSystemCopyOptions = {
+            count: this.psys.getCount(),
+            size: this.psys.getSize(),
+            particleSize: this.psys.getParticleSize(),
+            speed: this.psys.getSpeed(),
+        };
+
+        this.dispose();
+
+        if (!scene) {
+            throw new Error('No scene parent found for mesh');
+        }
+
+        return new BoidSystem(scene, options);
+    };
+
     dispose = () => {
         this.psys.dispose();
 
-        this.boidStats.dispose();
+        if (this.boidStats) this.boidStats.dispose();
     };
 }

@@ -248,6 +248,7 @@ export class SpatialPartitioning {
             Object.values(this.viz).forEach((box) => {
                 box.geometry.dispose();
                 (box.material as Material).dispose();
+                box.removeFromParent();
             });
         }
     };

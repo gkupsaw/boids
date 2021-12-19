@@ -5,6 +5,13 @@ export type ParticleSystemOptions = {
     speed?: number;
 };
 
+export type ParticleSystemCopyOptions = {
+    count: number;
+    size: number;
+    particleSize: number;
+    speed: number;
+};
+
 export type Attribute = {
     count: number;
     value: Float64Array | Float32Array | Int32Array | Int16Array | Int8Array | Uint32Array | Uint16Array | Uint8Array;
@@ -18,11 +25,4 @@ export enum IAttributes {
     aPindex = 'aPindex',
     aPosition = 'aPosition',
     aVelocity = 'aVelocity',
-}
-
-export enum Dimensions {
-    xy = 2,
-    xz = 1,
-    yz = 0,
-    xyz = -1,
 }

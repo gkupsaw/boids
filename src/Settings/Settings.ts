@@ -1,3 +1,5 @@
+import { Dimensions } from './../types/Dimensions';
+
 export enum SettingSection {
     global = 'global',
     attraction = 'attraction',
@@ -7,33 +9,52 @@ export enum SettingSection {
     cohesion = 'cohesion',
 }
 
+enum ExternalSettingsNames {
+    awarenessFactor = 'awarenessFactor',
+    sensitivity = 'sensitivity',
+    is3D = 'is3D',
+}
+
+enum InternalSettingsNames {
+    dimensions = 'dimensions',
+}
+
 export type Settings = {
     [index in SettingSection]: { [index: string]: any };
 };
 
+const internalSettingsSet = new Set<string>(Object.values(InternalSettingsNames));
+export const isInternalSetting = (setting: string) => {
+    return internalSettingsSet.has(setting);
+};
+
 export const SETTINGS: Settings = {
     [SettingSection.global]: {
-        awarenessFactor: 3,
-        sensitivity: 0.0,
+        [ExternalSettingsNames.awarenessFactor]: 3,
+        [ExternalSettingsNames.sensitivity]: 0.0,
+        [ExternalSettingsNames.is3D]: false,
+        get [InternalSettingsNames.dimensions]() {
+            return this[ExternalSettingsNames.is3D] ? Dimensions.xyz : Dimensions.xy;
+        },
     },
     [SettingSection.attraction]: {
-        awarenessFactor: 3,
-        sensitivity: 0,
+        [ExternalSettingsNames.awarenessFactor]: 3,
+        [ExternalSettingsNames.sensitivity]: 0,
     },
     [SettingSection.obstacles]: {
-        awarenessFactor: 2,
-        sensitivity: 0.3,
+        [ExternalSettingsNames.awarenessFactor]: 2,
+        [ExternalSettingsNames.sensitivity]: 0.3,
     },
     [SettingSection.separation]: {
-        awarenessFactor: 1,
-        sensitivity: 0.01,
+        [ExternalSettingsNames.awarenessFactor]: 1,
+        [ExternalSettingsNames.sensitivity]: 0.01,
     },
     [SettingSection.alignment]: {
-        awarenessFactor: 1,
-        sensitivity: 0.01,
+        [ExternalSettingsNames.awarenessFactor]: 1,
+        [ExternalSettingsNames.sensitivity]: 0.01,
     },
     [SettingSection.cohesion]: {
-        awarenessFactor: 3,
-        sensitivity: 0.5,
+        [ExternalSettingsNames.awarenessFactor]: 3,
+        [ExternalSettingsNames.sensitivity]: 0.5,
     },
 };

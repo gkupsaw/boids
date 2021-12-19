@@ -1,12 +1,14 @@
+import { isInternalSetting } from './../Settings/Settings';
 import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper, PerspectiveCamera } from 'three';
 import { GUI } from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-import { EventSystem } from './../EventSystem/EventSystem';
+import { EventSystem } from '../EventSystem/EventSystem';
 import { SETTINGS, SettingSection } from '../Settings/Settings';
-import { GameObject } from './../types/GameObject';
+import { GameObject } from '../types/GameObject';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { RendererStats, RendererStatsObject } from './debug/RendererStats';
+import { Dimensions } from '../types/Dimensions';
 
 export class ThreeGame {
     private gui!: GUI;
@@ -19,7 +21,7 @@ export class ThreeGame {
     private scene!: Scene;
     private controls!: OrbitControls;
     private camera!: PerspectiveCamera | OrthographicCamera;
-    private readonly gameObjects: GameObject[];
+    private readonly gameObjects: GameObject<any>[];
 
     static readonly SKY_COLOR = '#282c34';
 
@@ -78,11 +80,14 @@ export class ThreeGame {
     };
 
     private setupCamera = () => {
-        // this.camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
-        this.camera = new PerspectiveCamera();
-        this.camera.position.z += 2;
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.scene.add(this.camera);
+        if (SETTINGS.global.is3D) {
+            this.camera = new PerspectiveCamera();
+            this.camera.position.z += 2;
+            this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+            this.scene.add(this.camera);
+        } else {
+            this.camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        }
     };
 
     // API
@@ -153,7 +158,7 @@ export class ThreeGame {
         esys.play();
     };
 
-    addGameObject = (o: GameObject) => {
+    addGameObject = (o: GameObject<any>) => {
         this.gameObjects.push(o);
     };
 
@@ -163,7 +168,13 @@ export class ThreeGame {
         Object.values(SettingSection).forEach((section) => {
             const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
             Object.keys(SETTINGS[section]).forEach((setting) => {
-                folder.add(SETTINGS[section], setting, 0, 5);
+                if (!isInternalSetting(setting)) {
+                    if (setting === 'is3D') {
+                        folder.add(SETTINGS[section], setting, 0, 5).onChange(this.toggle3D);
+                    } else {
+                        folder.add(SETTINGS[section], setting, 0, 5);
+                    }
+                }
             });
             folder.open();
         });
@@ -181,6 +192,17 @@ export class ThreeGame {
         this.scene.add(new AxesHelper(1));
 
         return this;
+    };
+
+    toggle3D = () => {
+        this.scene.remove(this.camera);
+
+        this.setupCamera();
+
+        this.gameObjects.forEach((o, i) => {
+            this.gameObjects[i] = o.copy();
+            o.dispose();
+        });
     };
 
     dispose = () => {
