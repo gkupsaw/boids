@@ -1,25 +1,27 @@
 import { Vector3 } from 'three';
 
-export type ID = number;
+import { ParticleId } from '../ParticleSystem/ParticleSystemTypes';
+
+export type PointId = ParticleId;
+export type BBId = string;
+export type ClusterId = number;
 
 export type PointData = {
-    id: ID;
+    id: PointId;
     p: Vector3;
 };
 
 export type Point = PointData & {
-    bb: ID;
+    bb: BBId;
 };
 
 export type BB = {
-    id: ID;
+    id: BBId;
 
-    x: number;
-    y: number;
-    z: number;
+    indices: Vector3;
 
-    points: ID[];
-    cluster: ID;
+    points: PointId[];
+    cluster: ClusterId;
 
     visited: boolean;
 };

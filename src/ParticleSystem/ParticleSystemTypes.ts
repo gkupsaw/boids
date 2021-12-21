@@ -1,3 +1,5 @@
+export type ParticleId = number;
+
 export type ParticleSystemOptions = {
     count: number;
     size?: number;

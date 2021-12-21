@@ -8,7 +8,6 @@ import { SETTINGS, SettingSection } from '../Settings/Settings';
 import { GameObject } from '../types/GameObject';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { RendererStats, RendererStatsObject } from './debug/RendererStats';
-import { Dimensions } from '../types/Dimensions';
 
 export class ThreeGame {
     private gui!: GUI;

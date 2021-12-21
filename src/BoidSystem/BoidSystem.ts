@@ -1,13 +1,18 @@
 import { Scene, Vector3 } from 'three';
 
 import { GameObject } from '../types/GameObject';
-import { ParticleSystem, ParticleSystemOptions, ParticleSystemCopyOptions } from '../ParticleSystem/ParticleSystem';
+import {
+    ParticleSystem,
+    ParticleSystemOptions,
+    ParticleSystemCopyOptions,
+    ParticleId,
+} from '../ParticleSystem/ParticleSystem';
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { BoidStats, BoidStatsObject } from './debug/BoidStats';
 import { EventSystem } from './../EventSystem/EventSystem';
 
-type BoidForce = (particleId: number, tick: number) => Vector3;
+type BoidForce = (particleId: ParticleId, tick: number) => Vector3;
 
 export class BoidSystem implements GameObject<BoidSystem> {
     private readonly psys: ParticleSystem;
@@ -29,7 +34,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         ];
     }
 
-    private seekCentersOfAttraction = (particleId: number) => {
+    private seekCentersOfAttraction = (particleId: ParticleId) => {
         const centersOfAttraction = Object.values(this.centersOfAttraction);
         if (centersOfAttraction.length === 0) return new Vector3();
 
@@ -58,7 +63,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
     };
 
-    private avoidWalls = (particleId: number, tick: number) => {
+    private avoidWalls = (particleId: ParticleId, tick: number) => {
         const particleSize = this.psys.getParticleSize();
         const lowerBoundary = this.psys.lowerBoundary;
         const upperBoundary = this.psys.upperBoundary;
@@ -92,7 +97,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         return dir.normalize().multiplyScalar(sensitivity);
     };
 
-    private separateFromNeighbors = (particleId: number) => {
+    private separateFromNeighbors = (particleId: ParticleId) => {
         const particleSize = this.psys.getParticleSize();
 
         const p = this.psys.getParticlePosition(particleId);
@@ -123,7 +128,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
     };
 
-    private alignWithNeighbors = (particleId: number) => {
+    private alignWithNeighbors = (particleId: ParticleId) => {
         const particleSize = this.psys.getParticleSize();
 
         const p = this.psys.getParticlePosition(particleId);
@@ -154,7 +159,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
     };
 
-    private tendTowardFlockCenter = (particleId: number) => {
+    private tendTowardFlockCenter = (particleId: ParticleId) => {
         const sensitivity = SETTINGS.global.sensitivity + SETTINGS.cohesion.sensitivity;
         const speed = this.psys.getSpeed();
         const cluster = this.psys.getParticleCluster(particleId);

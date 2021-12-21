@@ -19,6 +19,7 @@ import {
     IAttributes,
     ParticleSystemOptions,
     ParticleSystemCopyOptions,
+    ParticleId,
 } from './ParticleSystemTypes';
 import { VizMode } from '../SpatialPartitioning/SpatialPartitioningTypes';
 import { GameObject } from '../types/GameObject';
@@ -28,8 +29,7 @@ import { SETTINGS } from '../Settings/Settings';
 import { Shaders } from '../gl/shaders';
 import { SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
 import { Cone } from '../Shapes/Cone';
-
-const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+import { randInRange } from '../Util/misc';
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
@@ -82,7 +82,16 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.mesh = new Mesh(geometry, material);
 
-        this.spatialPartitioning = new SpatialPartitioning(this.size, 20, 20, 20, { trackClusters: true });
+        const numBoxesPerDimension = Math.ceil((0.5 * this.size) / this.particleSize);
+        this.spatialPartitioning = new SpatialPartitioning(
+            this.size,
+            numBoxesPerDimension,
+            numBoxesPerDimension,
+            numBoxesPerDimension,
+            {
+                trackClusters: true,
+            }
+        );
 
         scene.add(this.mesh);
     }
@@ -163,7 +172,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         return this.iattributes[iattr].count;
     };
 
-    private moveParticle = (particleId: number, tick: number) => {
+    private moveParticle = (particleId: ParticleId, tick: number) => {
         const p = this.getParticlePosition(particleId);
         const v = this.getParticleVelocity(particleId);
         this.setParticlePosition(particleId, p.add(v.multiplyScalar(tick)).toArray());
@@ -197,13 +206,13 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         return this.iattributes.aPindex.value;
     };
 
-    getParticlePosition = (particleId: number) => {
+    getParticlePosition = (particleId: ParticleId) => {
         const offset = particleId * this.getIAttributeDimensionality(IAttributes.aPosition);
         const positions = this.accessIAttribute(IAttributes.aPosition);
         return new Vector3(positions[offset], positions[offset + 1], positions[offset + 2]);
     };
 
-    setParticlePosition = (particleId: number, p: number[]) => {
+    setParticlePosition = (particleId: ParticleId, p: number[]) => {
         const positionDimensionality = this.getIAttributeDimensionality(IAttributes.aPosition);
         const offset = particleId * positionDimensionality;
         const positions = this.accessIAttribute(IAttributes.aPosition);
@@ -216,13 +225,13 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         geometry.attributes.aPosition.needsUpdate = true;
     };
 
-    getParticleVelocity = (particleId: number) => {
+    getParticleVelocity = (particleId: ParticleId) => {
         const offset = particleId * this.getIAttributeDimensionality(IAttributes.aVelocity);
         const velocities = this.accessIAttribute(IAttributes.aVelocity);
         return new Vector3(velocities[offset], velocities[offset + 1], velocities[offset + 2]);
     };
 
-    setParticleVelocity = (particleId: number, v: number[]) => {
+    setParticleVelocity = (particleId: ParticleId, v: number[]) => {
         const velocityDimensionality = this.getIAttributeDimensionality(IAttributes.aVelocity);
         const offset = particleId * velocityDimensionality;
         const velocities = this.accessIAttribute(IAttributes.aVelocity);
@@ -235,7 +244,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         geometry.attributes.aVelocity.needsUpdate = true;
     };
 
-    getParticleCluster = (particleId: number) => this.spatialPartitioning.getClusterForPoint(particleId);
+    getParticleCluster = (particleId: ParticleId) => this.spatialPartitioning.getClusterForPoint(particleId);
 
     // Basic update for funsies
     update = (elapsed: number, tick: number) => {
@@ -268,7 +277,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         return this;
     };
 
-    highlightParticle = (particleId: number) => {
+    highlightParticle = (particleId: ParticleId) => {
         if (!this.highlight) {
             const mat = new MeshBasicMaterial({ color: 0xff0000 });
             mat.transparent = true;
