@@ -6,6 +6,8 @@ export class Counter {
     }
 
     next = () => this.count++;
+
+    reset = () => (this.count = 0);
 }
 
 export const randInRange = (min: number, max: number) => Math.random() * (max - min) + min;

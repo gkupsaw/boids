@@ -82,7 +82,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.mesh = new Mesh(geometry, material);
 
-        const numBoxesPerDimension = Math.ceil((0.5 * this.size) / this.particleSize);
+        const numBoxesPerDimension = Math.ceil((0.25 * this.size) / this.particleSize);
         this.spatialPartitioning = new SpatialPartitioning(
             this.size,
             numBoxesPerDimension,
