@@ -13,12 +13,14 @@ const _mousemoveEvent = { type: CustomEvent.mousemove };
 export class EventSystem extends EventDispatcher {
     private rootEl: HTMLElement;
     private paused: boolean;
+    private timePaused: boolean;
 
     constructor(rootEl: HTMLElement) {
         super();
 
         this.rootEl = rootEl;
         this.paused = true;
+        this.timePaused = false;
 
         this.setupListeners();
     }
@@ -26,6 +28,9 @@ export class EventSystem extends EventDispatcher {
     private onKeyDown = (e: KeyboardEvent) => {
         switch (e.key) {
             case 'p':
+                this.timePaused = !this.timePaused;
+                break;
+            case 'P':
                 if (this.paused) {
                     this.play();
                 } else {
@@ -48,6 +53,10 @@ export class EventSystem extends EventDispatcher {
 
     isPaused = () => {
         return this.paused;
+    };
+
+    isTimePaused = () => {
+        return this.timePaused;
     };
 
     pause = () => {

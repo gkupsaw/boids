@@ -131,7 +131,9 @@ export class ThreeGame {
             }
 
             // Update game objects
-            this.gameObjects.forEach((o) => o.update(elapsed, tick, prevElapsed, prevTick));
+            if (!esys.isTimePaused()) {
+                this.gameObjects.forEach((o) => o.update(elapsed, tick, prevElapsed, prevTick));
+            }
 
             // Render the scene
             this.renderer.render(this.scene, this.camera);
