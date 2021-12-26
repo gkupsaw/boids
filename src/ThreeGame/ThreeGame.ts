@@ -1,5 +1,14 @@
-import { isInternalSetting } from './../Settings/Settings';
-import { WebGLRenderer, OrthographicCamera, Scene, HemisphereLight, Color, AxesHelper, PerspectiveCamera } from 'three';
+import { ExternalSettingsNames, isInternalSetting } from './../Settings/Settings';
+import {
+    WebGLRenderer,
+    OrthographicCamera,
+    Scene,
+    HemisphereLight,
+    Color,
+    AxesHelper,
+    PerspectiveCamera,
+    Light,
+} from 'three';
 import { GUI } from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
@@ -18,11 +27,12 @@ export class ThreeGame {
 
     private renderer!: WebGLRenderer;
     private scene!: Scene;
+    private lights!: Light[];
     private controls!: OrbitControls;
     private camera!: PerspectiveCamera | OrthographicCamera;
     private readonly gameObjects: GameObject<any>[];
 
-    static readonly SKY_COLOR = '#282c34';
+    static readonly SKY_COLOR = SETTINGS.bean.envColor; //'#282c34';
 
     constructor() {
         this.id = `${Math.floor(Math.random() * 100000)}`;
@@ -71,11 +81,15 @@ export class ThreeGame {
     };
 
     private setupLights = () => {
+        this.lights = [];
+
         const color = 0xffffff;
         const intensity = 1;
         const sun = new HemisphereLight(0xcdcdca, color, intensity);
         sun.position.set(-1, 2, 4);
-        this.scene.add(sun);
+        this.lights.push(sun);
+
+        this.scene.add(...this.lights);
     };
 
     private setupCamera = () => {
@@ -170,10 +184,15 @@ export class ThreeGame {
             const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
             Object.keys(SETTINGS[section]).forEach((setting) => {
                 if (!isInternalSetting(setting)) {
-                    if (setting === 'is3D') {
-                        folder.add(SETTINGS[section], setting, 0, 5).onChange(this.toggle3D);
+                    if (setting === ExternalSettingsNames.is3D) {
+                        folder.add(SETTINGS[section], setting, 0, 1).onChange(this.toggle3D);
+                    } else if (setting === ExternalSettingsNames.envColor) {
+                        folder.addColor(SETTINGS[section], setting).onChange((hex: number) => {
+                            this.scene.background = new Color(hex);
+                            this.lights.forEach((l) => l.color.setHex(hex));
+                        });
                     } else {
-                        folder.add(SETTINGS[section], setting, 0, 5);
+                        folder.add(SETTINGS[section], setting, 0, 1);
                     }
                 }
             });

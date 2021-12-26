@@ -1,6 +1,7 @@
 import { Dimensions } from './../types/Dimensions';
 
 export enum SettingSection {
+    bean = 'bean',
     global = 'global',
     attraction = 'attraction',
     obstacles = 'obstacles',
@@ -9,7 +10,9 @@ export enum SettingSection {
     cohesion = 'cohesion',
 }
 
-enum ExternalSettingsNames {
+export enum ExternalSettingsNames {
+    envColor = 'envColor',
+    boidColor = 'boidColor',
     awarenessFactor = 'awarenessFactor',
     sensitivity = 'sensitivity',
     is3D = 'is3D',
@@ -29,10 +32,14 @@ export const isInternalSetting = (setting: string) => {
 };
 
 export const SETTINGS: Settings = {
+    [SettingSection.bean]: {
+        [ExternalSettingsNames.envColor]: 0x5f2ffa,
+        [ExternalSettingsNames.boidColor]: 0x5f2ffa,
+    },
     [SettingSection.global]: {
         [ExternalSettingsNames.awarenessFactor]: 3,
-        [ExternalSettingsNames.sensitivity]: 0.0,
-        [ExternalSettingsNames.is3D]: false,
+        [ExternalSettingsNames.sensitivity]: 0.01,
+        [ExternalSettingsNames.is3D]: true,
         get [InternalSettingsNames.dimensions]() {
             return this[ExternalSettingsNames.is3D] ? Dimensions.xyz : Dimensions.xy;
         },
@@ -43,18 +50,18 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.obstacles]: {
         [ExternalSettingsNames.awarenessFactor]: 2,
-        [ExternalSettingsNames.sensitivity]: 0.3,
+        [ExternalSettingsNames.sensitivity]: 1,
     },
     [SettingSection.separation]: {
         [ExternalSettingsNames.awarenessFactor]: 1,
-        [ExternalSettingsNames.sensitivity]: 0.01,
+        [ExternalSettingsNames.sensitivity]: 1,
     },
     [SettingSection.alignment]: {
         [ExternalSettingsNames.awarenessFactor]: 1,
-        [ExternalSettingsNames.sensitivity]: 0.01,
+        [ExternalSettingsNames.sensitivity]: 1,
     },
     [SettingSection.cohesion]: {
         [ExternalSettingsNames.awarenessFactor]: 3,
-        [ExternalSettingsNames.sensitivity]: 0.5,
+        [ExternalSettingsNames.sensitivity]: 1,
     },
 };
