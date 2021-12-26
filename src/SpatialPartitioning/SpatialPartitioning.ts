@@ -66,7 +66,9 @@ export class SpatialPartitioning {
         const indices = new Vector3(boxX, boxY, boxZ);
 
         if (indices.toArray().some((i) => i !== Math.floor(i)))
-            throw new Error('Indices must be whole numbers, got ' + indices.toArray());
+            throw new Error(
+                'Indices must be whole numbers, got ' + indices.toArray() + ' for ' + [pointX, pointY, pointZ]
+            );
 
         return indices;
     };
@@ -202,6 +204,47 @@ export class SpatialPartitioning {
         return this.clusters[this.bbs[this.points[pointId].bb].cluster];
     };
 
+    getPointsInRangeOfPoint = (pointId: PointId, range: number) => {
+        const points: PointId[] = [];
+
+        const p = this.points[pointId].p;
+
+        const initialBoxNegativeX = Math.floor((p.x - range) / this.boxWidth + this.widthDivisions / 2);
+        const initialBoxPositiveX = Math.ceil((p.x + range) / this.boxWidth + this.widthDivisions / 2);
+
+        const initialBoxNegativeY = Math.floor((p.y - range) / this.boxHeight + this.heightDivisions / 2);
+        const initialBoxPositiveY = Math.ceil((p.y + range) / this.boxHeight + this.heightDivisions / 2);
+
+        const initialBoxNegativeZ = Math.floor((p.z - range) / this.boxDepth + this.depthDivisions / 2);
+        const initialBoxPositiveZ = Math.ceil((p.z + range) / this.boxDepth + this.depthDivisions / 2);
+
+        for (let i = initialBoxNegativeX; i < initialBoxPositiveX; i++) {
+            for (let j = initialBoxNegativeY; j < initialBoxPositiveY; j++) {
+                for (let k = initialBoxNegativeZ; k < initialBoxPositiveZ; k++) {
+                    if (this.isValidBBIndices(i, j, k)) {
+                        const bb = this.getBB(i, j, k);
+
+                        if (bb) {
+                            if (this.vizMode === VizMode.PROXIMITY_QUERIES) {
+                                this.highlightBBs([bb.id]);
+                            }
+
+                            bb.points.forEach((otherPointId) => {
+                                const d = p.distanceToSquared(this.points[otherPointId].p);
+
+                                if (d < range) {
+                                    points.push(otherPointId);
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return points;
+    };
+
     clear = () => {
         if (this.viz && this.vizMode !== VizMode.NONE) {
             this.getOccupiedBBs().forEach((bb) => {
@@ -230,17 +273,18 @@ export class SpatialPartitioning {
 
         if (this.vizMode === VizMode.CLUSTER) {
             this.clusters.forEach(({ bbs }) => {
-                bbs.forEach((bb) => {
-                    const mat = this.viz[bb.id].material as LineBasicMaterial;
-                    mat.opacity = 1;
-                });
+                this.highlightBBs(bbs.map(({ id }) => id));
             });
         } else if (this.vizMode === VizMode.BB) {
-            this.getOccupiedBBs().forEach((bb) => {
-                const mat = this.viz[bb.id].material as LineBasicMaterial;
-                mat.opacity = 1;
-            });
+            this.highlightBBs(this.getOccupiedBBs().map(({ id }) => id));
         }
+    };
+
+    highlightBBs = (bbIds: BBId[]) => {
+        bbIds.forEach((bbIds) => {
+            const mat = this.viz[bbIds].material as LineBasicMaterial;
+            mat.opacity = 1;
+        });
     };
 
     withVisualization = (parent: Object3D, vizMode: VizMode) => {

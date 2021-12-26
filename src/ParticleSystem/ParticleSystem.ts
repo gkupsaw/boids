@@ -46,6 +46,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     private iattributes!: { [key in IAttributes]: Attribute };
     private readonly mesh: Mesh;
     private readonly spatialPartitioning: SpatialPartitioning;
+    private readonly spatialPartitioningBoxLength: number;
 
     // debug
     private viz!: Mesh;
@@ -54,6 +55,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     private static readonly DEFAULT_SYSTEM_SIZE = 1;
     private static readonly DEFAULT_PARTICLE_SIZE = 1;
     private static readonly DEFAULT_SPEED = 1;
+    private static readonly SPATIAL_PARTITION_RESOLUTION = 0.25;
 
     constructor(scene: Scene, options: ParticleSystemOptions) {
         this.count = options.count;
@@ -82,15 +84,15 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.mesh = new Mesh(geometry, material);
 
-        const numBoxesPerDimension = Math.ceil((0.25 * this.size) / this.particleSize);
+        this.spatialPartitioningBoxLength = ParticleSystem.SPATIAL_PARTITION_RESOLUTION / this.particleSize;
+
+        const numBoxesPerDimension = Math.ceil(this.spatialPartitioningBoxLength * this.size);
         this.spatialPartitioning = new SpatialPartitioning(
             this.size,
             numBoxesPerDimension,
             numBoxesPerDimension,
             numBoxesPerDimension,
-            {
-                trackClusters: true,
-            }
+            { trackClusters: true }
         );
 
         scene.add(this.mesh);
@@ -244,7 +246,13 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         geometry.attributes.aVelocity.needsUpdate = true;
     };
 
-    getParticleCluster = (particleId: ParticleId) => this.spatialPartitioning.getClusterForPoint(particleId);
+    getParticleCluster = (particleId: ParticleId) => {
+        return this.spatialPartitioning.getClusterForPoint(particleId);
+    };
+
+    getPerceptibleParticles = (particleId: ParticleId, perceptionDistance: number): ParticleId[] => {
+        return this.spatialPartitioning.getPointsInRangeOfPoint(particleId, perceptionDistance);
+    };
 
     // Basic update for funsies
     update = (elapsed: number, tick: number) => {

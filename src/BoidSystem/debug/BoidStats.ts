@@ -1,10 +1,16 @@
 import { Vector3 } from 'three';
 
-type Boid = { id: number; p: Vector3; v: Vector3; forces: { name: string; val: Vector3 }[] };
+type BoidInfo = {
+    id: number;
+    p: Vector3;
+    v: Vector3;
+    forces: { name: string; val: Vector3 }[];
+    avgForces: { [name: string]: Vector3 };
+};
 
 export type BoidStatsObject = {
     domElement: HTMLElement;
-    update: (boid: Boid) => void;
+    update: (boid: BoidInfo) => void;
     dispose: () => void;
 };
 
@@ -34,7 +40,7 @@ export const BoidStats = function (style: Record<string, any> = { position: 'abs
     return {
         domElement: container,
 
-        update: function (boid: Boid) {
+        update: function (boid: BoidInfo) {
             // refresh only 30time per second
             if (Date.now() - lastTime < 1000 / 30) return;
             lastTime = Date.now();
@@ -59,6 +65,10 @@ export const BoidStats = function (style: Record<string, any> = { position: 'abs
                 'Velocity: ' + boid.v.toArray().map((n) => n.toFixed(2)),
                 '== Forces ==============',
                 ...boid.forces.map((f) => f.name + ': ' + f.val.toArray().map((n) => n.toFixed(2))),
+                '== Group Forces ========',
+                ...Object.keys(boid.avgForces).map(
+                    (name) => name + ': ' + boid.avgForces[name].toArray().map((n) => n.toFixed(2))
+                ),
             ];
 
             var msTexts: HTMLElement[] = [];

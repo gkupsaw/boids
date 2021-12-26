@@ -26,7 +26,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         this.psys = new ParticleSystem(scene, options);
         this.centersOfAttraction = {};
         this.forces = [
-            { name: 'Attraction', force: this.seekCentersOfAttraction },
+            // { name: 'Attraction', force: this.seekCentersOfAttraction },
             { name: 'Obstacles', force: this.avoidWalls },
             { name: 'Separation', force: this.separateFromNeighbors },
             { name: 'Alignment', force: this.alignWithNeighbors },
@@ -43,7 +43,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const p = this.psys.getParticlePosition(particleId);
 
         const awareness = SETTINGS.attraction.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.attraction.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.attraction.sensitivity;
 
         let n = 0;
         const dir = new Vector3();
@@ -69,7 +69,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const upperBoundary = this.psys.upperBoundary;
 
         const awareness = SETTINGS.obstacles.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.obstacles.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.obstacles.sensitivity;
 
         const pi = this.psys.getParticlePosition(particleId);
         const vi = this.psys.getParticleVelocity(particleId);
@@ -103,29 +103,27 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const p = this.psys.getParticlePosition(particleId);
 
         const awareness = SETTINGS.separation.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.separation.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.separation.sensitivity;
 
-        let n = 0;
         const dir = new Vector3();
 
         if (sensitivity === 0) return dir;
 
-        this.psys.getParticleIds().forEach((otherParticleId) => {
+        const surroundingParticles = this.psys.getPerceptibleParticles(particleId, awareness);
+
+        if (surroundingParticles.length === 0) return new Vector3();
+
+        surroundingParticles.forEach((otherParticleId) => {
             if (otherParticleId !== particleId) {
                 const pOther = this.psys.getParticlePosition(otherParticleId);
                 const d = p.distanceToSquared(pOther);
 
-                if (d < awareness) {
-                    const avoidanceDir = p.clone().sub(pOther).normalize();
-                    dir.add(avoidanceDir.multiplyScalar(1 / d));
-                    n++;
-                }
+                const avoidanceDir = p.clone().sub(pOther).normalize();
+                dir.add(avoidanceDir.multiplyScalar(1 / d));
             }
         });
 
-        if (n === 0) return new Vector3();
-
-        return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+        return dir.divideScalar(surroundingParticles.length).normalize().multiplyScalar(sensitivity);
     };
 
     private alignWithNeighbors = (particleId: ParticleId) => {
@@ -134,45 +132,40 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const p = this.psys.getParticlePosition(particleId);
 
         const awareness = SETTINGS.alignment.awarenessFactor * particleSize;
-        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.alignment.sensitivity;
+        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.alignment.sensitivity;
 
-        let n = 0;
         const dir = new Vector3();
 
         if (sensitivity === 0) return dir;
 
-        this.psys.getParticleIds().forEach((otherParticleId) => {
+        const surroundingParticles = this.psys.getPerceptibleParticles(particleId, awareness);
+
+        if (surroundingParticles.length === 0) return new Vector3();
+
+        surroundingParticles.forEach((otherParticleId) => {
             if (otherParticleId !== particleId) {
                 const pOther = this.psys.getParticlePosition(otherParticleId);
                 const vOther = this.psys.getParticleVelocity(otherParticleId);
                 const d = p.distanceToSquared(pOther);
 
-                if (d < awareness) {
-                    dir.add(vOther.multiplyScalar(1 / d));
-                    n++;
-                }
+                dir.add(vOther.multiplyScalar(1 / d));
             }
         });
 
-        if (n === 0) return new Vector3();
-
-        return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+        return dir.divideScalar(surroundingParticles.length).normalize().multiplyScalar(sensitivity);
     };
 
     private tendTowardFlockCenter = (particleId: ParticleId) => {
-        const sensitivity = SETTINGS.global.sensitivity + SETTINGS.cohesion.sensitivity;
-        const speed = this.psys.getSpeed();
+        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.cohesion.sensitivity;
         const cluster = this.psys.getParticleCluster(particleId);
 
         if (sensitivity === 0 || !cluster) return new Vector3();
 
         const rayToCenter = cluster.center.clone().sub(this.psys.getParticlePosition(particleId));
-        const w = rayToCenter.lengthSq();
-        // const w = Math.min(rayToCenter.lengthSq(), 1);
-        const v = rayToCenter.normalize().multiplyScalar(w * sensitivity);
-        const vf = v.add(this.psys.getParticleVelocity(particleId)).normalize().multiplyScalar(speed);
+        // const w = 1 / rayToCenter.lengthSq();
+        const w = Math.min(rayToCenter.lengthSq(), 1);
 
-        return vf;
+        return rayToCenter.normalize().multiplyScalar(w * sensitivity);
     };
 
     // API
@@ -208,14 +201,21 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const particleIds = this.psys.getParticleIds();
         const speed = this.psys.getSpeed();
 
+        const indivForces: { name: string; val: Vector3 }[] = [];
+        const avgForces: { [name: string]: Vector3 } = {};
         particleIds.forEach((particleId) => {
-            const indivForces: { name: string; val: Vector3 }[] = [];
             const adjustmentDir = this.forces.reduce((acc, { name, force }) => {
                 const val = force(particleId, tick);
 
                 if (this.boidStats) {
                     if (particleId === this.boidOfInterest) {
                         indivForces.push({ name: name, val });
+                    }
+
+                    if (avgForces[name]) {
+                        avgForces[name].add(val);
+                    } else {
+                        avgForces[name] = val.clone();
                     }
                 }
 
@@ -226,19 +226,18 @@ export class BoidSystem implements GameObject<BoidSystem> {
             const vf = adjustmentDir.add(vi).normalize().multiplyScalar(speed);
 
             this.psys.setParticleVelocity(particleId, vf.toArray());
-
-            if (this.boidStats) {
-                if (particleId === this.boidOfInterest) {
-                    this.psys.highlightParticle(particleId);
-                    this.boidStats.update({
-                        id: particleId,
-                        p: this.psys.getParticlePosition(particleId),
-                        v: vf,
-                        forces: indivForces,
-                    });
-                }
-            }
         });
+
+        if (this.boidStats) {
+            this.psys.highlightParticle(this.boidOfInterest);
+            this.boidStats.update({
+                id: this.boidOfInterest,
+                p: this.psys.getParticlePosition(this.boidOfInterest),
+                v: this.psys.getParticleVelocity(this.boidOfInterest),
+                forces: indivForces,
+                avgForces: avgForces,
+            });
+        }
     };
 
     withVisualization = () => {
