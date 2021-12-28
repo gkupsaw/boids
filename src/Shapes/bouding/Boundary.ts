@@ -8,5 +8,7 @@ export interface Boundary {
 
     // isPointInside: (p: Vector3) => boolean;
 
+    withVisualization: () => void;
+
     dispose: () => void;
 }

@@ -200,8 +200,12 @@ export class SpatialPartitioning {
 
     getBB = (x: number, y: number, z: number) => this.bbs[this.getBBId(x, y, z)];
 
+    getBBForPoint = (pointId: PointId) => {
+        return this.bbs[this.points[pointId].bb];
+    };
+
     getClusterForPoint = (pointId: PointId) => {
-        return this.clusters[this.bbs[this.points[pointId].bb].cluster];
+        return this.clusters[this.getBBForPoint(pointId).cluster];
     };
 
     getPointsInRangeOfPoint = (pointId: PointId, range: number) => {

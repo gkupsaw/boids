@@ -10,7 +10,11 @@ export class Prism implements Boundary {
     protected readonly U: Matrix4;
     protected readonly invU: Matrix4;
 
+<<<<<<< HEAD
     protected readonly mesh: Mesh;
+=======
+    protected mesh!: Mesh;
+>>>>>>> improve boundary detection
 
     constructor(S: Matrix4, R: Matrix4, T: Matrix4, scene: Scene) {
         this.S = S;
@@ -19,7 +23,11 @@ export class Prism implements Boundary {
         this.U = T.clone().multiply(R).multiply(S);
         this.invU = this.U.clone().invert();
 
+<<<<<<< HEAD
         this.mesh = new Mesh(new BoxGeometry(), new MeshPhongMaterial({ transparent: true, opacity: 0.5 }));
+=======
+        this.mesh = new Mesh(new BoxGeometry(), new MeshPhongMaterial({ transparent: true, opacity: 0 }));
+>>>>>>> improve boundary detection
 
         this.mesh.applyMatrix4(this.U);
         this.mesh.geometry.computeBoundingBox();
@@ -87,6 +95,10 @@ export class Prism implements Boundary {
 
     //     return Math.max(...pCubeSpace.toArray().map((v) => Math.abs(v))) - 1.0 < EPSILON;
     // };
+
+    withVisualization = () => {
+        (this.mesh.material as Material).opacity = 0.5;
+    };
 
     dispose = () => {
         this.mesh.geometry.dispose();

@@ -39,7 +39,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
     }
 
     private setupCentersOfAttraction = () => {
-        this.centersOfAttraction['Debug'] = new Vector3();
+        // this.centersOfAttraction['Debug'] = new Vector3();
     };
 
     private setupObstacles = (scene: Scene) => {

@@ -54,14 +54,13 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.separation]: {
         [ExternalSettingsNames.awarenessFactor]: 1,
-        [ExternalSettingsNames.sensitivity]: 1,
+        [ExternalSettingsNames.sensitivity]: 0.1,
     },
     [SettingSection.alignment]: {
         [ExternalSettingsNames.awarenessFactor]: 1,
         [ExternalSettingsNames.sensitivity]: 1,
     },
     [SettingSection.cohesion]: {
-        [ExternalSettingsNames.awarenessFactor]: 3,
         [ExternalSettingsNames.sensitivity]: 1,
     },
 };
