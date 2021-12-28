@@ -184,15 +184,25 @@ export class ThreeGame {
             const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
             Object.keys(SETTINGS[section]).forEach((setting) => {
                 if (!isInternalSetting(setting)) {
-                    if (setting === ExternalSettingsNames.is3D) {
-                        folder.add(SETTINGS[section], setting, 0, 1).onChange(this.toggle3D);
-                    } else if (setting === ExternalSettingsNames.envColor) {
-                        folder.addColor(SETTINGS[section], setting).onChange((hex: number) => {
-                            this.scene.background = new Color(hex);
-                            this.lights.forEach((l) => l.color.setHex(hex));
-                        });
-                    } else {
-                        folder.add(SETTINGS[section], setting, 0, 1);
+                    switch (setting) {
+                        case ExternalSettingsNames.is3D:
+                            folder.add(SETTINGS[section], setting, 0, 1).onChange(this.toggle3D);
+                            break;
+                        case ExternalSettingsNames.envColor:
+                            folder.addColor(SETTINGS[section], setting).onChange((hex: number) => {
+                                this.scene.background = new Color(hex);
+                                this.lights.forEach((l) => l.color.setHex(hex));
+                            });
+                            break;
+                        case ExternalSettingsNames.awarenessFactor:
+                            folder.add(SETTINGS[section], setting, 0, 10, 1);
+                            break;
+                        case ExternalSettingsNames.sensitivity:
+                            folder.add(SETTINGS[section], setting, 0, 1, 0.01);
+                            break;
+                        default:
+                            folder.add(SETTINGS[section], setting, 0, 1, 0.01);
+                            break;
                     }
                 }
             });

@@ -145,10 +145,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         for (let i = 0; i < this.count; i++) {
             aPindex.value[i] = i;
 
-            // TODO: automate dimension change (VectorX)
-            const v = new Vector3(1, 0, 0)
-                .applyAxisAngle(new Vector3(0, 0, 1), Math.random() * 2 * Math.PI)
-                .multiplyScalar(this.speed);
+            const v = new Vector3().randomDirection().multiplyScalar(this.speed);
 
             for (let dim = 0; dim < aPosition.count; dim++) {
                 if (dim === SETTINGS.global.dimensions) continue;

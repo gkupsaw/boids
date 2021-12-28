@@ -20,21 +20,20 @@ class App extends React.Component {
     }
 
     componentDidMount = () => {
-        this.game = new ThreeGame().withUI(); //.withDebug();
+        this.game = new ThreeGame().withUI().withDebug();
         this.esys = new EventSystem(document.body);
         // this.esys = new EventSystem(this.game.getRenderer().domElement);
 
         // count: 500, particleSize: 0.04, speed: 0.3
         const bsys = new BoidSystem(this.game.getScene(), {
             size: 4,
-            count: 500,
+            count: 1,
             particleSize: 0.08,
             speed: 0.25,
-        });
-        // .withDebug();
+        }).withDebug();
         // .withVisualization();
-        const unsubscribeBsysFromEvents = bsys.subscribeToEvents(this.esys);
-        this.cleanup.push(unsubscribeBsysFromEvents);
+        // const unsubscribeBsysFromEvents = bsys.subscribeToEvents(this.esys);
+        // this.cleanup.push(unsubscribeBsysFromEvents);
         this.game.addGameObject(bsys);
 
         this.startGame();

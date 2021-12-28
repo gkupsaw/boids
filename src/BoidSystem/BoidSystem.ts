@@ -1,4 +1,4 @@
-import { Scene, Vector3 } from 'three';
+import { Euler, Matrix4, Scene, Vector3 } from 'three';
 
 import { GameObject } from '../types/GameObject';
 import {
@@ -10,29 +10,55 @@ import {
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { BoidStats, BoidStatsObject } from './debug/BoidStats';
-import { EventSystem } from './../EventSystem/EventSystem';
+import { EventSystem } from '../EventSystem/EventSystem';
+import { Boundary } from '../Shapes/bouding/Boundary';
+import { InvertedPrism } from '../Shapes/bouding/InvertedPrism';
+import { EPSILON } from '../Util/math';
 
 type BoidForce = (particleId: ParticleId, tick: number) => Vector3;
 
 export class BoidSystem implements GameObject<BoidSystem> {
     private readonly psys: ParticleSystem;
     private readonly centersOfAttraction: Record<string, Vector3>;
-    private readonly forces: { name: string; force: BoidForce }[];
+    private readonly obstacles: Record<string, Boundary>;
+    private readonly forces: Record<string, BoidForce>;
 
     private boidStats!: BoidStatsObject;
     private boidOfInterest!: number;
 
     constructor(scene: Scene, options: ParticleSystemOptions) {
         this.psys = new ParticleSystem(scene, options);
+
         this.centersOfAttraction = {};
-        this.forces = [
-            // { name: 'Attraction', force: this.seekCentersOfAttraction },
-            { name: 'Obstacles', force: this.avoidWalls },
-            { name: 'Separation', force: this.separateFromNeighbors },
-            { name: 'Alignment', force: this.alignWithNeighbors },
-            { name: 'Cohesion', force: this.tendTowardFlockCenter },
-        ];
+        this.obstacles = {};
+        this.forces = {};
+
+        this.setupCentersOfAttraction();
+        this.setupObstacles(scene);
+        this.setupForces();
     }
+
+    private setupCentersOfAttraction = () => {
+        this.centersOfAttraction['Debug'] = new Vector3();
+    };
+
+    private setupObstacles = (scene: Scene) => {
+        const psysSize = this.psys.getSize();
+        this.obstacles['Walls'] = new InvertedPrism(
+            new Matrix4().makeScale(psysSize, psysSize, psysSize),
+            new Matrix4().makeRotationFromEuler(new Euler(0, 0, 0)),
+            new Matrix4().makeTranslation(0, 0, 0),
+            scene
+        );
+    };
+
+    private setupForces = () => {
+        this.forces['Attraction'] = this.seekCentersOfAttraction;
+        this.forces['Obstacles'] = this.avoidObstacles;
+        this.forces['Separation'] = this.separateFromNeighbors;
+        this.forces['Alignment'] = this.alignWithNeighbors;
+        this.forces['Cohesion'] = this.tendTowardFlockCenter;
+    };
 
     private seekCentersOfAttraction = (particleId: ParticleId) => {
         const centersOfAttraction = Object.values(this.centersOfAttraction);
@@ -63,38 +89,24 @@ export class BoidSystem implements GameObject<BoidSystem> {
         return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
     };
 
-    private avoidWalls = (particleId: ParticleId, tick: number) => {
+    private avoidObstacles = (particleId: ParticleId) => {
         const particleSize = this.psys.getParticleSize();
-        const lowerBoundary = this.psys.lowerBoundary;
-        const upperBoundary = this.psys.upperBoundary;
 
         const awareness = SETTINGS.obstacles.awarenessFactor * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.obstacles.sensitivity;
 
         const pi = this.psys.getParticlePosition(particleId);
-        const vi = this.psys.getParticleVelocity(particleId);
-        const pf = pi.add(vi.multiplyScalar(tick));
-        const dir = new Vector3(
-            pf.x <= lowerBoundary + awareness
-                ? 1 / Math.abs(pf.x)
-                : pf.x >= upperBoundary - awareness
-                ? -1 / Math.abs(pf.x)
-                : 0,
 
-            pf.y <= lowerBoundary + awareness
-                ? 1 / Math.abs(pf.y)
-                : pf.y >= upperBoundary - awareness
-                ? -1 / Math.abs(pf.y)
-                : 0,
+        for (const obstacle of Object.values(this.obstacles)) {
+            const intersectionData = obstacle.intersectPoint(pi);
 
-            pf.z <= lowerBoundary + awareness
-                ? 1 / Math.abs(pf.z)
-                : pf.z >= upperBoundary - awareness
-                ? -1 / Math.abs(pf.z)
-                : 0
-        );
+            if (intersectionData?.face && intersectionData.distance < awareness) {
+                const dir = intersectionData.face.normal.clone(); //vi.clone().reflect(intersectionData.face.normal).normalize();
+                return dir.multiplyScalar(sensitivity * (1 / (intersectionData.distance + EPSILON)));
+            }
+        }
 
-        return dir.normalize().multiplyScalar(sensitivity);
+        return new Vector3();
     };
 
     private separateFromNeighbors = (particleId: ParticleId) => {
@@ -204,7 +216,8 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const indivForces: { name: string; val: Vector3 }[] = [];
         const avgForces: { [name: string]: Vector3 } = {};
         particleIds.forEach((particleId) => {
-            const adjustmentDir = this.forces.reduce((acc, { name, force }) => {
+            const adjustmentDir = Object.keys(this.forces).reduce((acc, name) => {
+                const force = this.forces[name];
                 const val = force(particleId, tick);
 
                 if (this.boidStats) {
@@ -276,5 +289,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         this.psys.dispose();
 
         if (this.boidStats) this.boidStats.dispose();
+
+        Object.values(this.obstacles).forEach((o) => o.dispose());
     };
 }

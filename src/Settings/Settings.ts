@@ -46,7 +46,7 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.attraction]: {
         [ExternalSettingsNames.awarenessFactor]: 3,
-        [ExternalSettingsNames.sensitivity]: 0,
+        [ExternalSettingsNames.sensitivity]: 1,
     },
     [SettingSection.obstacles]: {
         [ExternalSettingsNames.awarenessFactor]: 2,
@@ -65,3 +65,9 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.sensitivity]: 1,
     },
 };
+
+// SETTINGS.global.sensitivity = 0.5;
+SETTINGS.attraction.sensitivity = 0;
+SETTINGS.separation.sensitivity = 0;
+SETTINGS.alignment.sensitivity = 0;
+SETTINGS.cohesion.sensitivity = 0;
