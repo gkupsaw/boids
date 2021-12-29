@@ -29,6 +29,7 @@ import { SETTINGS } from '../Settings/Settings';
 import { Shaders } from '../gl/shaders';
 import { SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
 import { Cone } from '../Shapes/Cone';
+import { Sphere } from '../Shapes/Sphere';
 import { randInRange } from '../Util/misc';
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
@@ -104,8 +105,9 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
                 count: 3,
                 value:
                     SETTINGS.global.dimensions === Dimensions.xyz
-                        ? new Float32Array(Cone(20, 0.25, 0.75))
-                        : new Float32Array([
+                        ? new Float32Array(Sphere(8, 0.25))
+                        : // ? new Float32Array(Cone(20, 0.25, 0.75))
+                          new Float32Array([
                               // frontside
                               0.5, -0.5, 0, -0.5, -0.5, 0, 0, 0.5, 0,
 
