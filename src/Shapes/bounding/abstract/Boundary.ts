@@ -1,5 +1,5 @@
 import { Intersection, Vector3 } from 'three';
-import { IntersectionData, Ray } from './RayTypes';
+import { IntersectionData, Ray } from '../RayTypes';
 
 export interface Boundary {
     // intersect: (r: Ray, t: number) => IntersectionData | null;

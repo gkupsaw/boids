@@ -1,25 +1,25 @@
-import { Matrix4, Vector3, Mesh, BoxGeometry, Material, Scene, Raycaster, MeshPhongMaterial } from 'three';
+import { Matrix4, Vector3, Mesh, Material, Scene, Raycaster, MeshPhongMaterial, BufferGeometry } from 'three';
+import { EPSILON } from '../../../Util/math';
 import { Boundary } from './Boundary';
-import { EPSILON } from '../../Util/math';
-import { IntersectionData, Ray } from './RayTypes';
+import { IntersectionData, Ray } from '../RayTypes';
 
-export class Prism implements Boundary {
-    protected readonly S: Matrix4;
-    protected readonly R: Matrix4;
-    protected readonly T: Matrix4;
-    protected readonly U: Matrix4;
-    protected readonly invU: Matrix4;
+export abstract class AbstractBoundary implements Boundary {
+    private readonly S: Matrix4;
+    private readonly R: Matrix4;
+    private readonly T: Matrix4;
+    private readonly U: Matrix4;
+    private readonly invU: Matrix4;
 
-    protected mesh!: Mesh;
+    private mesh!: Mesh;
 
-    constructor(S: Matrix4, R: Matrix4, T: Matrix4, scene: Scene) {
+    constructor(geometry: BufferGeometry, scene: Scene, S: Matrix4, R: Matrix4, T: Matrix4) {
         this.S = S;
         this.R = R;
         this.T = T;
         this.U = T.clone().multiply(R).multiply(S);
         this.invU = this.U.clone().invert();
 
-        this.mesh = new Mesh(new BoxGeometry(), new MeshPhongMaterial({ transparent: true, opacity: 0 }));
+        this.mesh = new Mesh(geometry, new MeshPhongMaterial({ transparent: true, opacity: 0 }));
         this.mesh.applyMatrix4(this.U);
         this.mesh.geometry.computeBoundingBox();
 
@@ -29,6 +29,8 @@ export class Prism implements Boundary {
     get longestDiagonal() {
         return Math.max(...this.S.toArray()) * Math.SQRT2;
     }
+
+    getMesh = () => this.mesh;
 
     intersectPoint = (p: Vector3) => {
         const dir = this.mesh.position.clone().sub(p).normalize();

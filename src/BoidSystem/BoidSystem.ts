@@ -11,9 +11,9 @@ import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { BoidStats, BoidStatsObject } from './debug/BoidStats';
 import { EventSystem } from '../EventSystem/EventSystem';
-import { Boundary } from '../Shapes/bouding/Boundary';
-import { InvertedPrism } from '../Shapes/bouding/InvertedPrism';
+import { Boundary } from '../Shapes/bounding/abstract/Boundary';
 import { EPSILON } from '../Util/math';
+import { InvertedBoundingBox } from '../Shapes/bounding/InvertedBoundingBox';
 
 type BoidForce = (particleId: ParticleId, tick: number) => Vector3;
 
@@ -44,11 +44,11 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
     private setupObstacles = (scene: Scene) => {
         const psysSize = this.psys.getSize();
-        this.obstacles['Walls'] = new InvertedPrism(
+        this.obstacles['Walls'] = new InvertedBoundingBox(
+            scene,
             new Matrix4().makeScale(psysSize, psysSize, psysSize),
             new Matrix4().makeRotationFromEuler(new Euler(0, 0, 0)),
-            new Matrix4().makeTranslation(0, 0, 0),
-            scene
+            new Matrix4().makeTranslation(0, 0, 0)
         );
     };
 

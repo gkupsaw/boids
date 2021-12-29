@@ -64,9 +64,3 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.sensitivity]: 1,
     },
 };
-
-// SETTINGS.global.sensitivity = 0.5;
-SETTINGS.attraction.sensitivity = 0;
-SETTINGS.separation.sensitivity = 0;
-SETTINGS.alignment.sensitivity = 0;
-SETTINGS.cohesion.sensitivity = 0;
