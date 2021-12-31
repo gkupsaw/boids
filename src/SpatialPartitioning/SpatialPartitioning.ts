@@ -233,13 +233,23 @@ export class SpatialPartitioning {
                                 this.highlightBBs([bb.id]);
                             }
 
-                            bb.points.forEach((otherPointId) => {
-                                const d = p.distanceToSquared(this.points[otherPointId].p);
-
-                                if (d < range) {
-                                    points.push(otherPointId);
-                                }
-                            });
+                            // if (
+                            //     i === initialBoxNegativeX ||
+                            //     i === initialBoxPositiveX - 1 ||
+                            //     j === initialBoxNegativeY ||
+                            //     j === initialBoxPositiveY - 1 ||
+                            //     k === initialBoxNegativeZ ||
+                            //     k === initialBoxPositiveZ - 1
+                            // ) {
+                            // bb.points.forEach((otherPointId) => {
+                            //     const d = p.distanceToSquared(this.points[otherPointId].p);
+                            //     if (d < range) {
+                            //         points.push(otherPointId);
+                            //     }
+                            // });
+                            // } else {
+                            points.push(...bb.points);
+                            // }
                         }
                     }
                 }

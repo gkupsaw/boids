@@ -27,7 +27,7 @@ class App extends React.Component {
         // count: 500, particleSize: 0.04, speed: 0.3
         const bsys = new BoidSystem(this.game.getScene(), {
             size: 4,
-            count: 5000,
+            count: 2000,
             particleSize: 0.08,
             speed: 0.25,
         }); //.withDebug();

@@ -32,6 +32,13 @@ import { Cone } from '../Shapes/Cone';
 import { Sphere } from '../Shapes/Sphere';
 import { randInRange } from '../Util/misc';
 
+enum BoidShape {
+    CONE,
+    SPHERE,
+}
+
+const BOID_SHAPE: BoidShape = BoidShape.CONE;
+
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
     private readonly size: number;
@@ -48,6 +55,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly mesh: Mesh;
     private readonly spatialPartitioning: SpatialPartitioning;
     private readonly spatialPartitioningBoxLength: number;
+
+    private readonly cache: Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>;
 
     // debug
     private viz!: Mesh;
@@ -97,6 +106,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         );
 
         scene.add(this.mesh);
+
+        this.cache = new Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>();
     }
 
     private setupAttributes = (geometry: InstancedBufferGeometry) => {
@@ -105,9 +116,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
                 count: 3,
                 value:
                     SETTINGS.global.dimensions === Dimensions.xyz
-                        ? new Float32Array(Sphere(8, 0.25))
-                        : // ? new Float32Array(Cone(20, 0.25, 0.75))
-                          new Float32Array([
+                        ? BOID_SHAPE === BoidShape.SPHERE
+                            ? new Float32Array(Sphere(8, 0.25))
+                            : new Float32Array(Cone(20, 0.25, 0.75))
+                        : new Float32Array([
                               // frontside
                               0.5, -0.5, 0, -0.5, -0.5, 0, 0, 0.5, 0,
 
@@ -208,9 +220,23 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     };
 
     getParticlePosition = (particleId: ParticleId) => {
+        const cached = this.cache.get(particleId);
+
+        if (cached?.position) {
+            return cached.position;
+        }
+
         const offset = particleId * this.getIAttributeDimensionality(IAttributes.aPosition);
         const positions = this.accessIAttribute(IAttributes.aPosition);
-        return new Vector3(positions[offset], positions[offset + 1], positions[offset + 2]);
+        const p = new Vector3(positions[offset], positions[offset + 1], positions[offset + 2]);
+
+        if (cached) {
+            cached.position = p;
+        } else {
+            this.cache.set(particleId, { position: p });
+        }
+
+        return p;
     };
 
     setParticlePosition = (particleId: ParticleId, p: number[]) => {
@@ -223,13 +249,34 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             positions[offset + i] = p[i];
         }
 
+        const cached = this.cache.get(particleId);
+        if (cached) {
+            cached.position = new Vector3(...p);
+        } else {
+            this.cache.set(particleId, { position: new Vector3(...p) });
+        }
+
         geometry.attributes.aPosition.needsUpdate = true;
     };
 
     getParticleVelocity = (particleId: ParticleId) => {
+        const cached = this.cache.get(particleId);
+
+        if (cached?.velocity) {
+            return cached.velocity;
+        }
+
         const offset = particleId * this.getIAttributeDimensionality(IAttributes.aVelocity);
         const velocities = this.accessIAttribute(IAttributes.aVelocity);
-        return new Vector3(velocities[offset], velocities[offset + 1], velocities[offset + 2]);
+        const v = new Vector3(velocities[offset], velocities[offset + 1], velocities[offset + 2]);
+
+        if (cached) {
+            cached.velocity = v;
+        } else {
+            this.cache.set(particleId, { velocity: v });
+        }
+
+        return v;
     };
 
     setParticleVelocity = (particleId: ParticleId, v: number[]) => {
@@ -240,6 +287,13 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         for (let i = 0; i < velocityDimensionality; i++) {
             velocities[offset + i] = v[i];
+        }
+
+        const cached = this.cache.get(particleId);
+        if (cached) {
+            cached.velocity = new Vector3(...v);
+        } else {
+            this.cache.set(particleId, { velocity: new Vector3(...v) });
         }
 
         geometry.attributes.aVelocity.needsUpdate = true;
@@ -253,8 +307,9 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         return this.spatialPartitioning.getPointsInRangeOfPoint(particleId, perceptionDistance);
     };
 
-    // Basic update for funsies
     update = (elapsed: number, tick: number) => {
+        this.cache.clear();
+
         this.shader.uniforms.uTick.value = tick;
 
         this.spatialPartitioning.update(
