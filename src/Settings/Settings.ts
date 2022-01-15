@@ -58,9 +58,13 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.alignment]: {
         [ExternalSettingsNames.awarenessFactor]: 1,
-        [ExternalSettingsNames.sensitivity]: 1,
+        [ExternalSettingsNames.sensitivity]: 10,
     },
     [SettingSection.cohesion]: {
         [ExternalSettingsNames.sensitivity]: 1,
     },
 };
+
+SETTINGS.separation.sensitivity = 0;
+SETTINGS.cohesion.sensitivity = 0;
+SETTINGS.attraction.sensitivity = 0;

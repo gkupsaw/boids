@@ -15,6 +15,7 @@ import { Boundary } from '../Shapes/bounding/abstract/Boundary';
 import { EPSILON } from '../Util/math';
 import { InvertedBoundingBox } from '../Shapes/bounding/InvertedBoundingBox';
 
+const MAX_FORCE_INFLUENCE = 1e1;
 type BoidForce = (particleId: ParticleId, tick: number) => Vector3;
 
 export class BoidSystem implements GameObject<BoidSystem> {
@@ -79,14 +80,15 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
             if (d < awareness) {
                 const attractionDir = pOther.clone().sub(p).normalize();
-                dir.add(attractionDir.multiplyScalar(d));
+                const influence = Math.min(1 / d, MAX_FORCE_INFLUENCE);
+                dir.add(attractionDir.multiplyScalar(influence));
                 n++;
             }
         }
 
         if (n === 0) return new Vector3();
 
-        return dir.divideScalar(n).normalize().multiplyScalar(sensitivity);
+        return dir.normalize().multiplyScalar(sensitivity);
     };
 
     private avoidObstacles = (particleId: ParticleId) => {
@@ -102,7 +104,8 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
             if (intersectionData?.face && intersectionData.distance < awareness) {
                 const dir = intersectionData.face.normal.clone(); //vi.clone().reflect(intersectionData.face.normal).normalize();
-                return dir.multiplyScalar(sensitivity * (1 / (intersectionData.distance + EPSILON)));
+                const influence = Math.min(1 / (intersectionData.distance + EPSILON), MAX_FORCE_INFLUENCE);
+                return dir.multiplyScalar(sensitivity * influence);
             }
         }
 
@@ -129,13 +132,14 @@ export class BoidSystem implements GameObject<BoidSystem> {
             if (otherParticleId !== particleId) {
                 const pOther = this.psys.getParticlePosition(otherParticleId);
                 const d = p.distanceToSquared(pOther);
+                const influence = Math.min(1 / d, MAX_FORCE_INFLUENCE);
 
                 const avoidanceDir = p.clone().sub(pOther).normalize();
-                dir.add(avoidanceDir.multiplyScalar(1 / d));
+                dir.add(avoidanceDir.multiplyScalar(influence));
             }
         });
 
-        return dir.divideScalar(surroundingParticles.length).normalize().multiplyScalar(sensitivity);
+        return dir.normalize().multiplyScalar(sensitivity);
     };
 
     private alignWithNeighbors = (particleId: ParticleId) => {
@@ -159,12 +163,13 @@ export class BoidSystem implements GameObject<BoidSystem> {
                 const pOther = this.psys.getParticlePosition(otherParticleId);
                 const vOther = this.psys.getParticleVelocity(otherParticleId);
                 const d = p.distanceToSquared(pOther);
+                const influence = Math.min(1 / d, MAX_FORCE_INFLUENCE);
 
-                dir.add(vOther.multiplyScalar(1 / d));
+                dir.add(vOther.multiplyScalar(influence));
             }
         });
 
-        return dir.divideScalar(surroundingParticles.length).normalize().multiplyScalar(sensitivity);
+        return dir.normalize().multiplyScalar(sensitivity);
     };
 
     private tendTowardFlockCenter = (particleId: ParticleId) => {
@@ -173,11 +178,11 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
         if (sensitivity === 0 || !cluster) return new Vector3();
 
-        const rayToCenter = cluster.center.clone().sub(this.psys.getParticlePosition(particleId));
+        const attractionDir = cluster.center.clone().sub(this.psys.getParticlePosition(particleId)).normalize();
         // const w = 1 / rayToCenter.lengthSq();
-        const w = Math.min(rayToCenter.lengthSq(), 1);
+        // const w = Math.min(rayToCenter.lengthSq(), 1);
 
-        return rayToCenter.normalize().multiplyScalar(w * sensitivity);
+        return attractionDir.multiplyScalar(sensitivity);
     };
 
     // API
@@ -222,7 +227,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
                 if (this.boidStats) {
                     if (particleId === this.boidOfInterest) {
-                        indivForces.push({ name: name, val });
+                        indivForces.push({ name, val });
                     }
 
                     if (avgForces[name]) {

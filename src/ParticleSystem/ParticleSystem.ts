@@ -38,6 +38,7 @@ enum BoidShape {
 }
 
 const BOID_SHAPE: BoidShape = BoidShape.CONE;
+const GENERATE_CLUSTERS = true;
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
@@ -155,7 +156,6 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         const aPosition = this.iattributes[IAttributes.aPosition];
         const aVelocity = this.iattributes[IAttributes.aVelocity];
 
-        const coverWholeSpace = true;
         for (let i = 0; i < this.count; i++) {
             aPindex.value[i] = i;
 
@@ -164,10 +164,38 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             for (let dim = 0; dim < aPosition.count; dim++) {
                 if (dim === SETTINGS.global.dimensions) continue;
 
-                aPosition.value[i * aPosition.count + dim] = coverWholeSpace
-                    ? randInRange(this.lowerBoundary, this.upperBoundary)
-                    : randInRange(this.upperBoundary * 0.5, this.upperBoundary);
+                aPosition.value[i * aPosition.count + dim] = randInRange(this.lowerBoundary, this.upperBoundary);
                 aVelocity.value[i * aVelocity.count + dim] = v.getComponent(dim);
+            }
+        }
+
+        if (GENERATE_CLUSTERS) {
+            const numClusters = randInRange(2, 7);
+            const clusterBreakpoint = Math.floor(this.count / numClusters);
+            const clusterSize = this.size / (2 * numClusters);
+            let clusterCenter = new Vector3(
+                randInRange(this.lowerBoundary, this.upperBoundary),
+                randInRange(this.lowerBoundary, this.upperBoundary),
+                randInRange(this.lowerBoundary, this.upperBoundary)
+            );
+
+            for (let i = 0; i < this.count; i++) {
+                if (i % clusterBreakpoint === 0) {
+                    clusterCenter = new Vector3(
+                        randInRange(this.lowerBoundary, this.upperBoundary),
+                        randInRange(this.lowerBoundary, this.upperBoundary),
+                        randInRange(this.lowerBoundary, this.upperBoundary)
+                    );
+                }
+
+                for (let dim = 0; dim < aPosition.count; dim++) {
+                    if (dim === SETTINGS.global.dimensions) continue;
+
+                    aPosition.value[i * aPosition.count + dim] = randInRange(
+                        Math.max(this.lowerBoundary, clusterCenter.getComponent(dim) - clusterSize),
+                        Math.min(this.upperBoundary, clusterCenter.getComponent(dim) + clusterSize)
+                    );
+                }
             }
         }
 
