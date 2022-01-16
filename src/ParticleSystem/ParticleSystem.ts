@@ -36,6 +36,7 @@ enum BoidShape {
 
 const BOID_SHAPE: BoidShape = BoidShape.CONE;
 const GENERATE_CLUSTERS = true;
+const MIN_BB_MEMBERS_FOR_CLUSTER = 1;
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
@@ -196,6 +197,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         const numBoxesPerDimension = Math.ceil(spatialPartitioningBoxLength * this.size);
         return new SpatialPartitioning(this.size, numBoxesPerDimension, numBoxesPerDimension, numBoxesPerDimension, {
             trackClusters: true,
+            minBBMembersForCluster: MIN_BB_MEMBERS_FOR_CLUSTER,
         });
     };
 
@@ -365,15 +367,28 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     withVisualization = () => {
         if (this.viz || !this.mesh.parent) return this;
 
-        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER);
-
-        this.viz = new ParticleSystemVisualization(this.mesh.parent, this.size, this.particleSize);
+        this.viz = new ParticleSystemVisualization(this.mesh.parent, this.size, this.particleSize, {
+            opacity: 0.5,
+        })
+            // .withBoundaryVisualization()
+            // .withPointHighlight()
+            .withForceHighlight(Array.from(this.getParticleIds()));
 
         return this;
     };
 
+    withSpatialPartitioningVisualization = () => {
+        if (!this.mesh.parent) return this;
+
+        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER);
+    };
+
     highlightParticle = (particleId: ParticleId) => {
         this.viz?.highlightPoint(this.getParticlePosition(particleId));
+    };
+
+    highlightForce = (particleId: ParticleId, forceName: string, direction: Vector3) => {
+        this.viz?.highlightForce(particleId, forceName, this.getParticlePosition(particleId), direction);
     };
 
     copy = () => {
