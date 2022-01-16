@@ -225,6 +225,8 @@ export class BoidSystem implements GameObject<BoidSystem> {
                 const force = this.forces[name];
                 const val = force(particleId, tick);
 
+                if (name === 'Cohesion') this.psys.highlightForce(particleId, name, val);
+
                 if (this.boidStats) {
                     if (particleId === this.boidOfInterest) {
                         indivForces.push({ name, val });
@@ -248,6 +250,11 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
         if (this.boidStats) {
             this.psys.highlightParticle(this.boidOfInterest);
+
+            indivForces.forEach(({ name, val }) => {
+                this.psys.highlightForce(this.boidOfInterest, name, val);
+            });
+
             this.boidStats.update({
                 id: this.boidOfInterest,
                 p: this.psys.getParticlePosition(this.boidOfInterest),
@@ -265,7 +272,10 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     withDebug = (boidOfInterest: number = 0) => {
-        this.boidStats = BoidStats();
+        if (!this.boidStats) {
+            this.boidStats = BoidStats();
+        }
+
         this.boidOfInterest = boidOfInterest;
 
         return this;

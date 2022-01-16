@@ -11,6 +11,7 @@ export class SpatialPartitioning {
     private readonly heightDivisions: number;
     private readonly depthDivisions: number;
     private readonly trackClusters: boolean;
+    private readonly minBBMembersForCluster: number;
 
     private points: Record<PointId, Point>;
     private bbs: Record<BBId, BB>;
@@ -22,12 +23,19 @@ export class SpatialPartitioning {
     private readonly clusterIdGen: Counter;
     private static readonly DEFAULT_CLUSTER_ID: ClusterId = -1;
 
-    constructor(size: number, width: number, height: number, depth: number, { trackClusters = true } = {}) {
+    constructor(
+        size: number,
+        width: number,
+        height: number,
+        depth: number,
+        { trackClusters = true, minBBMembersForCluster = 1 } = {}
+    ) {
         this.size = size;
         this.widthDivisions = width;
         this.heightDivisions = height;
         this.depthDivisions = depth;
         this.trackClusters = trackClusters;
+        this.minBBMembersForCluster = minBBMembersForCluster;
 
         this.bbs = {};
         this.points = {};
@@ -142,7 +150,7 @@ export class SpatialPartitioning {
                         const neighborId = this.getBBId(neighborX, neighborY, neighborZ);
                         const neighbor = this.bbs[neighborId];
 
-                        if (neighbor && !neighbor.visited) {
+                        if (neighbor && !neighbor.visited && neighbor.points.length >= this.minBBMembersForCluster) {
                             pCount += neighbor.points.length;
                             center.add(
                                 neighbor.points.reduce((acc, pointId) => acc.add(this.points[pointId].p), new Vector3())
