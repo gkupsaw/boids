@@ -1,15 +1,12 @@
+import { randVec3InRange } from './../Util/misc';
 import {
-    BoxGeometry,
     BufferAttribute,
     InstancedBufferAttribute,
     InstancedBufferGeometry,
-    LineBasicMaterial,
     Material,
     Mesh,
-    MeshBasicMaterial,
     Scene,
     ShaderMaterial,
-    SphereGeometry,
     Vector3,
 } from 'three';
 
@@ -22,15 +19,15 @@ import {
     ParticleId,
 } from './ParticleSystemTypes';
 import { VizMode } from '../SpatialPartitioning/SpatialPartitioningTypes';
-import { GameObject } from '../types/GameObject';
-import { Dimensions } from '../types/Dimensions';
+import { Dimensions, GameObject } from '../types';
 import { SETTINGS } from '../Settings/Settings';
 
-import { Shaders } from '../gl/shaders';
+import { Shaders, Shader } from '../gl/shaders';
 import { SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
 import { Cone } from '../Shapes/Cone';
 import { Sphere } from '../Shapes/Sphere';
 import { randInRange } from '../Util/misc';
+import { ParticleSystemVisualization } from './ParticleSystemVisualization';
 
 enum BoidShape {
     CONE,
@@ -46,22 +43,16 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly particleSize: number;
     private readonly speed: number;
 
-    private readonly shader: {
-        uniforms: { [uniformName: string]: any };
-        vert: string;
-        frag: string;
-    };
-    private attributes!: { [key in Attributes]: Attribute };
-    private iattributes!: { [key in IAttributes]: Attribute };
+    private readonly shader: Shader;
+    private readonly attributes: { [key in Attributes]: Attribute };
+    private readonly iattributes: { [key in IAttributes]: Attribute };
     private readonly mesh: Mesh;
     private readonly spatialPartitioning: SpatialPartitioning;
-    private readonly spatialPartitioningBoxLength: number;
 
     private readonly cache: Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>;
 
     // debug
-    private viz!: Mesh;
-    private highlight!: Mesh;
+    private viz!: ParticleSystemVisualization;
 
     private static readonly DEFAULT_SYSTEM_SIZE = 1;
     private static readonly DEFAULT_PARTICLE_SIZE = 1;
@@ -73,46 +64,65 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         this.size = options.size ?? ParticleSystem.DEFAULT_SYSTEM_SIZE;
         this.particleSize = options.particleSize ?? ParticleSystem.DEFAULT_PARTICLE_SIZE;
         this.speed = options.speed ?? ParticleSystem.DEFAULT_SPEED;
+        this.cache = new Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>();
 
         if (this.particleSize >= this.size) {
             throw new Error('particleSize must be less than size');
         }
 
+        this.shader = this.setupShader();
+
+        this.mesh = this.setupParticleMesh();
+
+        this.attributes = this.setupAttributes();
+
+        this.iattributes = this.setupInstancedAttributes();
+
+        this.spatialPartitioning = this.setupSpatialPartitioning();
+
+        if (GENERATE_CLUSTERS) {
+            this.clusterParticles();
+        }
+
+        scene.add(this.mesh);
+    }
+
+    private get lowerBoundary() {
+        return -(this.size / 2 - this.particleSize / 2);
+    }
+
+    private get upperBoundary() {
+        return this.size / 2 - this.particleSize / 2;
+    }
+
+    private setupShader = () => {
         const shaders = Shaders();
-        this.shader = shaders.boids;
-        this.shader.uniforms.uSize.value = this.particleSize;
+        const shader = shaders.boids;
+        shader.uniforms.uSize.value = this.particleSize;
+
+        return shader;
+    };
+
+    private setupParticleMesh = () => {
+        if (this.mesh) return this.mesh;
 
         const geometry = new InstancedBufferGeometry();
 
-        this.setupAttributes(geometry);
-        this.setupInstancedAttributes(geometry);
-
         const material = new ShaderMaterial({
-            uniforms: shaders.boids.uniforms,
-            vertexShader: shaders.boids.vert,
-            fragmentShader: shaders.boids.frag,
+            uniforms: this.shader.uniforms,
+            vertexShader: this.shader.vert,
+            fragmentShader: this.shader.frag,
         });
 
-        this.mesh = new Mesh(geometry, material);
+        const mesh = new Mesh(geometry, material);
 
-        this.spatialPartitioningBoxLength = ParticleSystem.SPATIAL_PARTITION_RESOLUTION / this.particleSize;
+        return mesh;
+    };
 
-        const numBoxesPerDimension = Math.ceil(this.spatialPartitioningBoxLength * this.size);
-        this.spatialPartitioning = new SpatialPartitioning(
-            this.size,
-            numBoxesPerDimension,
-            numBoxesPerDimension,
-            numBoxesPerDimension,
-            { trackClusters: true }
-        );
+    private setupAttributes = () => {
+        const geometry = this.mesh.geometry;
 
-        scene.add(this.mesh);
-
-        this.cache = new Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>();
-    }
-
-    private setupAttributes = (geometry: InstancedBufferGeometry) => {
-        this.attributes = {
+        const attributes = {
             [Attributes.position]: {
                 count: 3,
                 value:
@@ -131,13 +141,17 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         };
 
         for (const attributeName of Object.keys(Attributes)) {
-            const { count, value } = this.attributes[attributeName as Attributes];
+            const { count, value } = attributes[attributeName as Attributes];
             geometry.setAttribute(attributeName, new BufferAttribute(value, count));
         }
+
+        return attributes;
     };
 
-    private setupInstancedAttributes = (geometry: InstancedBufferGeometry) => {
-        this.iattributes = {
+    private setupInstancedAttributes = () => {
+        const geometry = this.mesh.geometry;
+
+        const iattributes = {
             [IAttributes.aPindex]: {
                 count: 1,
                 value: new Uint16Array(this.count),
@@ -152,9 +166,9 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             },
         };
 
-        const aPindex = this.iattributes[IAttributes.aPindex];
-        const aPosition = this.iattributes[IAttributes.aPosition];
-        const aVelocity = this.iattributes[IAttributes.aVelocity];
+        const aPindex = iattributes[IAttributes.aPindex];
+        const aPosition = iattributes[IAttributes.aPosition];
+        const aVelocity = iattributes[IAttributes.aVelocity];
 
         for (let i = 0; i < this.count; i++) {
             aPindex.value[i] = i;
@@ -169,39 +183,46 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             }
         }
 
-        if (GENERATE_CLUSTERS) {
-            const numClusters = randInRange(2, 7);
-            const clusterBreakpoint = Math.floor(this.count / numClusters);
-            const clusterSize = this.size / (2 * numClusters);
-            let clusterCenter = new Vector3(
-                randInRange(this.lowerBoundary, this.upperBoundary),
-                randInRange(this.lowerBoundary, this.upperBoundary),
-                randInRange(this.lowerBoundary, this.upperBoundary)
-            );
-
-            for (let i = 0; i < this.count; i++) {
-                if (i % clusterBreakpoint === 0) {
-                    clusterCenter = new Vector3(
-                        randInRange(this.lowerBoundary, this.upperBoundary),
-                        randInRange(this.lowerBoundary, this.upperBoundary),
-                        randInRange(this.lowerBoundary, this.upperBoundary)
-                    );
-                }
-
-                for (let dim = 0; dim < aPosition.count; dim++) {
-                    if (dim === SETTINGS.global.dimensions) continue;
-
-                    aPosition.value[i * aPosition.count + dim] = randInRange(
-                        Math.max(this.lowerBoundary, clusterCenter.getComponent(dim) - clusterSize),
-                        Math.min(this.upperBoundary, clusterCenter.getComponent(dim) + clusterSize)
-                    );
-                }
-            }
+        for (const iattributeName of Object.keys(IAttributes)) {
+            const { count, value } = iattributes[iattributeName as IAttributes];
+            geometry.setAttribute(iattributeName, new InstancedBufferAttribute(value, count, false));
         }
 
-        for (const iattributeName of Object.keys(IAttributes)) {
-            const { count, value } = this.iattributes[iattributeName as IAttributes];
-            geometry.setAttribute(iattributeName, new InstancedBufferAttribute(value, count, false));
+        return iattributes;
+    };
+
+    private setupSpatialPartitioning = () => {
+        const spatialPartitioningBoxLength = ParticleSystem.SPATIAL_PARTITION_RESOLUTION / this.particleSize;
+        const numBoxesPerDimension = Math.ceil(spatialPartitioningBoxLength * this.size);
+        return new SpatialPartitioning(this.size, numBoxesPerDimension, numBoxesPerDimension, numBoxesPerDimension, {
+            trackClusters: true,
+        });
+    };
+
+    private clusterParticles = () => {
+        const numClusters = randInRange(2, 7);
+        const clusterBreakpoint = Math.floor(this.count / numClusters);
+        const clusterSize = this.size / (2 * numClusters);
+
+        const dimensions = this.getIAttributeDimensionality(IAttributes.aPosition);
+        const clusterCenter = randVec3InRange(this.lowerBoundary, this.upperBoundary);
+
+        for (let i = 0; i < this.count; i++) {
+            if (i % clusterBreakpoint === 0) {
+                clusterCenter.copy(randVec3InRange(this.lowerBoundary, this.upperBoundary));
+            }
+
+            const p = new Array(dimensions).fill(0);
+            for (let dim = 0; dim < dimensions; dim++) {
+                if (dim === SETTINGS.global.dimensions) continue;
+
+                p[dim] = randInRange(
+                    Math.max(this.lowerBoundary, clusterCenter.getComponent(dim) - clusterSize),
+                    Math.min(this.upperBoundary, clusterCenter.getComponent(dim) + clusterSize)
+                );
+            }
+
+            this.setParticlePosition(i, p);
         }
     };
 
@@ -218,14 +239,6 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         const v = this.getParticleVelocity(particleId);
         this.setParticlePosition(particleId, p.add(v.multiplyScalar(tick)).toArray());
     };
-
-    get lowerBoundary() {
-        return -(this.size / 2 - this.particleSize / 2);
-    }
-
-    get upperBoundary() {
-        return this.size / 2 - this.particleSize / 2;
-    }
 
     getSize = () => this.size;
 
@@ -354,30 +367,13 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER);
 
-        const geo = new BoxGeometry(this.size, this.size, this.size);
-
-        const mat = new LineBasicMaterial({ color: 0x000000 });
-        mat.transparent = true;
-        mat.opacity = 0.5;
-
-        this.viz = new Mesh(geo, mat);
-
-        this.mesh.parent.add(this.viz);
+        this.viz = new ParticleSystemVisualization(this.mesh.parent, this.size, this.particleSize);
 
         return this;
     };
 
     highlightParticle = (particleId: ParticleId) => {
-        if (!this.highlight) {
-            const mat = new MeshBasicMaterial({ color: 0xff0000 });
-            mat.transparent = true;
-            mat.opacity = 0.5;
-
-            this.highlight = new Mesh(new SphereGeometry(this.particleSize, 10, 10), mat);
-            this.mesh.parent?.add(this.highlight);
-        }
-
-        this.highlight.position.copy(this.getParticlePosition(particleId));
+        this.viz?.highlightPoint(this.getParticlePosition(particleId));
     };
 
     copy = () => {
@@ -396,7 +392,13 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             throw new Error('No scene parent found for mesh');
         }
 
-        return new ParticleSystem(scene, options);
+        const psys = new ParticleSystem(scene, options);
+
+        if (this.viz) {
+            psys.withVisualization();
+        }
+
+        return psys;
     };
 
     dispose = () => {
@@ -405,15 +407,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         this.mesh.removeFromParent();
 
         if (this.viz) {
-            this.viz.geometry.dispose();
-            (this.viz.material as Material).dispose();
-            this.viz.removeFromParent();
-        }
-
-        if (this.highlight) {
-            this.highlight.geometry.dispose();
-            (this.highlight.material as Material).dispose();
-            this.highlight.removeFromParent();
+            this.viz.dispose();
         }
 
         this.spatialPartitioning.dispose();

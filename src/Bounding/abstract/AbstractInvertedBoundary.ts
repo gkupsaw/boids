@@ -1,6 +1,6 @@
 import { Matrix4, Vector3, Material, Scene, Raycaster, BackSide, BufferGeometry } from 'three';
 import { AbstractBoundary } from './AbstractBoundary';
-import { EPSILON } from '../../../Util/math';
+import { EPSILON } from '../../Util/math';
 
 export abstract class AbstractInvertedBoundary extends AbstractBoundary {
     constructor(geometry: BufferGeometry, scene: Scene, S: Matrix4, R: Matrix4, T: Matrix4) {

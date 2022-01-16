@@ -50,7 +50,7 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.obstacles]: {
         [ExternalSettingsNames.awarenessFactor]: 2,
-        [ExternalSettingsNames.sensitivity]: 1,
+        [ExternalSettingsNames.sensitivity]: 0.01,
     },
     [SettingSection.separation]: {
         [ExternalSettingsNames.awarenessFactor]: 1,
@@ -61,10 +61,12 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.sensitivity]: 10,
     },
     [SettingSection.cohesion]: {
-        [ExternalSettingsNames.sensitivity]: 1,
+        [ExternalSettingsNames.sensitivity]: 100,
     },
 };
 
 SETTINGS.separation.sensitivity = 0;
-SETTINGS.cohesion.sensitivity = 0;
+// SETTINGS.cohesion.sensitivity = 0;
 SETTINGS.attraction.sensitivity = 0;
+SETTINGS.alignment.sensitivity = 0;
+// SETTINGS.obstacles.sensitivity = 0;

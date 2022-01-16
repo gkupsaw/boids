@@ -1,5 +1,11 @@
 import { Vector3 } from 'three';
 
+export type Shader = {
+    uniforms: { [u: string]: any };
+    frag: string;
+    vert: string;
+};
+
 export const Shaders = () => ({
     default: {
         uniforms: {},

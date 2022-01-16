@@ -11,9 +11,9 @@ import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { BoidStats, BoidStatsObject } from './debug/BoidStats';
 import { EventSystem } from '../EventSystem/EventSystem';
-import { Boundary } from '../Shapes/bounding/abstract/Boundary';
+import { Boundary } from '../Bounding/abstract/Boundary';
 import { EPSILON } from '../Util/math';
-import { InvertedBoundingBox } from '../Shapes/bounding/InvertedBoundingBox';
+import { InvertedBoundingBox } from '../Bounding/InvertedBoundingBox';
 
 const MAX_FORCE_INFLUENCE = 1e1;
 type BoidForce = (particleId: ParticleId, tick: number) => Vector3;

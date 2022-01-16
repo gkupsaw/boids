@@ -1,5 +1,5 @@
 import { Matrix4, Vector3, Mesh, Material, Scene, Raycaster, MeshPhongMaterial, BufferGeometry } from 'three';
-import { EPSILON } from '../../../Util/math';
+import { EPSILON } from '../../Util/math';
 import { Boundary } from './Boundary';
 import { IntersectionData, Ray } from '../RayTypes';
 
