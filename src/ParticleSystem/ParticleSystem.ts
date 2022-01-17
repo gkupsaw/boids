@@ -36,13 +36,12 @@ enum BoidShape {
 
 const BOID_SHAPE: BoidShape = BoidShape.CONE;
 const GENERATE_CLUSTERS = true;
-const MIN_BB_MEMBERS_FOR_CLUSTER = 1;
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
     private readonly size: number;
     private readonly particleSize: number;
-    private readonly speed: number;
+    private speed: number;
 
     private readonly shader: Shader;
     private readonly attributes: { [key in Attributes]: Attribute };
@@ -197,7 +196,6 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         const numBoxesPerDimension = Math.ceil(spatialPartitioningBoxLength * this.size);
         return new SpatialPartitioning(this.size, numBoxesPerDimension, numBoxesPerDimension, numBoxesPerDimension, {
             trackClusters: true,
-            minBBMembersForCluster: MIN_BB_MEMBERS_FOR_CLUSTER,
         });
     };
 
@@ -249,6 +247,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     getParticleSize = () => this.particleSize;
 
     getSpeed = () => this.speed;
+
+    setSpeed = (speed: number) => (this.speed = speed);
 
     getAttributes = () => this.attributes;
 

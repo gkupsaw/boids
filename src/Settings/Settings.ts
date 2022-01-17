@@ -16,6 +16,7 @@ export enum ExternalSettingsNames {
     awarenessFactor = 'awarenessFactor',
     sensitivity = 'sensitivity',
     is3D = 'is3D',
+    speed = 'speed',
 }
 
 enum InternalSettingsNames {
@@ -40,6 +41,7 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.awarenessFactor]: 3,
         [ExternalSettingsNames.sensitivity]: 0.01,
         [ExternalSettingsNames.is3D]: true,
+        [ExternalSettingsNames.speed]: 0.25,
         get [InternalSettingsNames.dimensions]() {
             return this[ExternalSettingsNames.is3D] ? Dimensions.xyz : Dimensions.xy;
         },
@@ -61,7 +63,7 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.sensitivity]: 10,
     },
     [SettingSection.cohesion]: {
-        [ExternalSettingsNames.sensitivity]: 100,
+        [ExternalSettingsNames.sensitivity]: 0.1,
     },
 };
 

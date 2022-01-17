@@ -187,6 +187,10 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
     // API
 
+    setSpeed = (speed: number) => {
+        this.psys.setSpeed(speed);
+    };
+
     setCenterOfAttraction = (id: string, p: Vector3) => {
         this.centersOfAttraction[id] = p;
     };

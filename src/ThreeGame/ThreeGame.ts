@@ -1,4 +1,3 @@
-import { ExternalSettingsNames, isInternalSetting } from './../Settings/Settings';
 import {
     WebGLRenderer,
     OrthographicCamera,
@@ -9,17 +8,15 @@ import {
     PerspectiveCamera,
     Light,
 } from 'three';
-import { GUI } from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import { EventSystem } from '../EventSystem/EventSystem';
-import { SETTINGS, SettingSection } from '../Settings/Settings';
+import { SETTINGS } from '../Settings/Settings';
 import { GameObject } from '../types/GameObject';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { RendererStats, RendererStatsObject } from './debug/RendererStats';
 
 export class ThreeGame {
-    private gui!: GUI;
     private rendererStats!: RendererStatsObject;
 
     private readonly id: string;
@@ -113,6 +110,10 @@ export class ThreeGame {
         return this.scene;
     };
 
+    getLights = () => {
+        return this.lights;
+    };
+
     start = (esys: EventSystem) => {
         if (!esys.isPaused()) {
             throw new Error('Attempted to start game that is already running.');
@@ -177,41 +178,6 @@ export class ThreeGame {
         this.gameObjects.push(o);
     };
 
-    withUI = () => {
-        this.gui = new GUI();
-
-        Object.values(SettingSection).forEach((section) => {
-            const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
-            Object.keys(SETTINGS[section]).forEach((setting) => {
-                if (!isInternalSetting(setting)) {
-                    switch (setting) {
-                        case ExternalSettingsNames.is3D:
-                            folder.add(SETTINGS[section], setting, 0, 1).onChange(this.toggle3D);
-                            break;
-                        case ExternalSettingsNames.envColor:
-                            folder.addColor(SETTINGS[section], setting).onChange((hex: number) => {
-                                this.scene.background = new Color(hex);
-                                this.lights.forEach((l) => l.color.setHex(hex));
-                            });
-                            break;
-                        case ExternalSettingsNames.awarenessFactor:
-                            folder.add(SETTINGS[section], setting, 0, 10, 1);
-                            break;
-                        case ExternalSettingsNames.sensitivity:
-                            folder.add(SETTINGS[section], setting, 0, 1, 0.01);
-                            break;
-                        default:
-                            folder.add(SETTINGS[section], setting, 0, 1, 0.01);
-                            break;
-                    }
-                }
-            });
-            folder.open();
-        });
-
-        return this;
-    };
-
     withRendererStats = () => {
         this.rendererStats = RendererStats();
 
@@ -253,7 +219,6 @@ export class ThreeGame {
         }
 
         this.gameObjects.forEach((o) => o.dispose());
-        this.gui?.destroy();
         this.rendererStats?.dispose();
     };
 }
