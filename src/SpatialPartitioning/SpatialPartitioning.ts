@@ -1,4 +1,16 @@
-import { Vector3, Object3D, Material, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute } from 'three';
+import {
+    Vector3,
+    Object3D,
+    Material,
+    Line,
+    LineBasicMaterial,
+    BufferGeometry,
+    Float32BufferAttribute,
+    Mesh,
+    SphereGeometry,
+    MeshPhongMaterial,
+    BoxGeometry,
+} from 'three';
 
 import { PointId, PointData, Point, BB, BBCluster, VizMode, ClusterId, BBId } from './SpatialPartitioningTypes';
 import { LineCube } from '../Shapes/LineCube';
@@ -11,35 +23,39 @@ export class SpatialPartitioning {
     private readonly heightDivisions: number;
     private readonly depthDivisions: number;
     private readonly trackClusters: boolean;
-    private readonly minBBMembersForCluster: number;
 
     private points: Record<PointId, Point>;
     private bbs: Record<BBId, BB>;
     private clusters: BBCluster[];
 
+    private readonly clusterCenterVisualizationMesh: Mesh;
+    private readonly clusterCenterVisualizations: Object3D;
+    private bbVisualization!: Mesh | Line;
+
     private vizMode: VizMode;
-    private viz!: Record<BBId, Line>;
+    private viz!: Record<BBId, Mesh | Line>;
 
     private readonly clusterIdGen: Counter;
     private static readonly DEFAULT_CLUSTER_ID: ClusterId = -1;
 
-    constructor(
-        size: number,
-        width: number,
-        height: number,
-        depth: number,
-        { trackClusters = true, minBBMembersForCluster = 1 } = {}
-    ) {
+    constructor(size: number, width: number, height: number, depth: number, { trackClusters = true } = {}) {
         this.size = size;
         this.widthDivisions = width;
         this.heightDivisions = height;
         this.depthDivisions = depth;
         this.trackClusters = trackClusters;
-        this.minBBMembersForCluster = minBBMembersForCluster;
 
         this.bbs = {};
         this.points = {};
         this.clusters = [];
+
+        this.clusterCenterVisualizationMesh = new Mesh(
+            new SphereGeometry(this.boxDepth, 10, 10),
+            new MeshPhongMaterial({ color: 0xff0000 })
+        );
+        (this.clusterCenterVisualizationMesh.material as Material).transparent = true;
+        (this.clusterCenterVisualizationMesh.material as Material).opacity = 0.8;
+        this.clusterCenterVisualizations = new Object3D();
 
         this.vizMode = VizMode.NONE;
 
@@ -150,7 +166,7 @@ export class SpatialPartitioning {
                         const neighborId = this.getBBId(neighborX, neighborY, neighborZ);
                         const neighbor = this.bbs[neighborId];
 
-                        if (neighbor && !neighbor.visited && neighbor.points.length >= this.minBBMembersForCluster) {
+                        if (neighbor && !neighbor.visited) {
                             pCount += neighbor.points.length;
                             center.add(
                                 neighbor.points.reduce((acc, pointId) => acc.add(this.points[pointId].p), new Vector3())
@@ -293,12 +309,21 @@ export class SpatialPartitioning {
             this.gatherAllClusters();
         }
 
-        if (this.vizMode === VizMode.CLUSTER) {
+        if (this.vizMode === VizMode.CLUSTER || this.vizMode === VizMode.CLUSTER_SKELETON) {
             this.clusters.forEach(({ bbs }) => {
                 this.highlightBBs(bbs.map(({ id }) => id));
             });
         } else if (this.vizMode === VizMode.BB) {
             this.highlightBBs(this.getOccupiedBBs().map(({ id }) => id));
+        } else if (this.vizMode === VizMode.CLUSTER_CENTER) {
+            this.clusterCenterVisualizations.clear();
+
+            this.clusters.forEach(({ center }) => {
+                const m: Mesh = new Mesh();
+                m.copy(this.clusterCenterVisualizationMesh);
+                m.position.copy(center);
+                this.clusterCenterVisualizations.add(m);
+            });
         }
     };
 
@@ -310,6 +335,11 @@ export class SpatialPartitioning {
     };
 
     withVisualization = (parent: Object3D, vizMode: VizMode) => {
+        this.withBBVisualization(parent, vizMode);
+        this.withClusterCenterVisualization(parent);
+    };
+
+    withBBVisualization = (parent: Object3D, vizMode: VizMode) => {
         if (this.viz) return this;
 
         this.vizMode = vizMode;
@@ -319,23 +349,40 @@ export class SpatialPartitioning {
                 ? LineCube(this.boxWidth, this.boxHeight, this.boxDepth)
                 : LineSquare(this.boxWidth, this.boxHeight);
 
-        const geo = new BufferGeometry();
-        geo.setAttribute('position', new Float32BufferAttribute(positions, 3));
+        if (vizMode === VizMode.CLUSTER) {
+            const geo = new BoxGeometry(this.boxWidth, this.boxHeight, this.boxDepth);
+            this.bbVisualization = new Mesh(geo, new MeshPhongMaterial({ color: 0x00ff00 }));
+        } else if (vizMode === VizMode.CLUSTER_SKELETON) {
+            const geo = new BufferGeometry();
+            geo.setAttribute('position', new Float32BufferAttribute(positions, 3));
+            this.bbVisualization = new Line(geo, new LineBasicMaterial({ color: 0x00ff00 })).computeLineDistances();
+        } else {
+            return;
+        }
+
+        (this.bbVisualization.material as Material).transparent = true;
+        (this.bbVisualization.material as Material).opacity = 0;
 
         this.viz = {};
 
         for (let k = 0; k < this.depthDivisions; k++) {
             for (let i = 0; i < this.heightDivisions; i++) {
                 for (let j = 0; j < this.widthDivisions; j++) {
-                    const mat = new LineBasicMaterial({ color: 0x00ff00 });
-                    mat.transparent = true;
-                    mat.opacity = 0;
-                    const box = new Line(geo, mat).computeLineDistances();
-
+                    const box = this.bbVisualization.clone();
                     const boxPosition = this.getBoxPositionFromIndices(j, i, k);
 
                     box.position.add(boxPosition);
                     box.scale.multiplyScalar(0.96);
+
+                    if (vizMode === VizMode.CLUSTER) {
+                        box.material = new MeshPhongMaterial({ color: 0x00ff00 });
+                    } else if (vizMode === VizMode.CLUSTER_SKELETON) {
+                        box.material = new LineBasicMaterial({ color: 0x00ff00 });
+                    }
+
+                    (box.material as Material).transparent = true;
+                    (box.material as Material).opacity = 0;
+
                     this.viz[this.getBBId(j, i, k)] = box;
                 }
             }
@@ -346,13 +393,24 @@ export class SpatialPartitioning {
         return this;
     };
 
+    withClusterCenterVisualization = (parent: Object3D) => {
+        parent.add(this.clusterCenterVisualizations);
+    };
+
     dispose = () => {
         if (this.viz) {
+            this.bbVisualization.geometry.dispose();
+            (this.bbVisualization.material as Material).dispose();
+
             Object.values(this.viz).forEach((box) => {
-                box.geometry.dispose();
-                (box.material as Material).dispose();
+                // box.geometry.dispose();
+                // (box.material as Material).dispose();
                 box.removeFromParent();
             });
         }
+
+        this.clusterCenterVisualizationMesh.geometry.dispose();
+        (this.clusterCenterVisualizationMesh.material as Material).dispose();
+        this.clusterCenterVisualizations.removeFromParent();
     };
 }

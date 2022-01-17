@@ -374,13 +374,15 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             // .withPointHighlight()
             .withForceHighlight(Array.from(this.getParticleIds()));
 
+        this.withSpatialPartitioningVisualization();
+
         return this;
     };
 
     withSpatialPartitioningVisualization = () => {
         if (!this.mesh.parent) return this;
 
-        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER);
+        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER_CENTER);
     };
 
     highlightParticle = (particleId: ParticleId) => {

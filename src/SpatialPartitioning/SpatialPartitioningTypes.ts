@@ -36,5 +36,7 @@ export enum VizMode {
     NONE,
     BB,
     CLUSTER,
+    CLUSTER_SKELETON,
+    CLUSTER_CENTER,
     PROXIMITY_QUERIES,
 }
