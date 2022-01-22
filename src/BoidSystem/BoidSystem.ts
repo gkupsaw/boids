@@ -69,7 +69,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
         const p = this.psys.getParticlePosition(particleId);
 
-        const awareness = SETTINGS.attraction.awarenessFactor * particleSize;
+        const awareness = SETTINGS.attraction.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.attraction.sensitivity;
 
         let n = 0;
@@ -94,7 +94,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
     private avoidObstacles = (particleId: ParticleId) => {
         const particleSize = this.psys.getParticleSize();
 
-        const awareness = SETTINGS.obstacles.awarenessFactor * particleSize;
+        const awareness = SETTINGS.obstacles.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.obstacles.sensitivity;
 
         const pi = this.psys.getParticlePosition(particleId);
@@ -117,7 +117,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
         const p = this.psys.getParticlePosition(particleId);
 
-        const awareness = SETTINGS.separation.awarenessFactor * particleSize;
+        const awareness = SETTINGS.separation.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.separation.sensitivity;
 
         const dir = new Vector3();
@@ -147,7 +147,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
         const p = this.psys.getParticlePosition(particleId);
 
-        const awareness = SETTINGS.alignment.awarenessFactor * particleSize;
+        const awareness = SETTINGS.alignment.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.alignment.sensitivity;
 
         const dir = new Vector3();
@@ -192,7 +192,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     setCenterOfAttraction = (id: string, p: Vector3) => {
-        this.centersOfAttraction[id] = p;
+        this.centersOfAttraction[id] = p.clone();
     };
 
     removeCenterOfAttraction = (id: string) => {
@@ -225,7 +225,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const indivForces: { name: string; val: Vector3 }[] = [];
         const avgForces: { [name: string]: Vector3 } = {};
         particleIds.forEach((particleId) => {
-            const adjustmentDir = Object.keys(this.forces).reduce((acc, name) => {
+            const adjustment = Object.keys(this.forces).reduce((acc, name) => {
                 const force = this.forces[name];
                 const val = force(particleId, tick);
 
@@ -247,7 +247,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
             }, new Vector3());
 
             const vi = this.psys.getParticleVelocity(particleId);
-            const vf = adjustmentDir.add(vi).normalize().multiplyScalar(speed);
+            const vf = adjustment.add(vi).normalize().multiplyScalar(speed);
 
             this.psys.setParticleVelocity(particleId, vf.toArray());
         });

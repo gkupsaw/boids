@@ -13,7 +13,7 @@ export enum SettingSection {
 export enum ExternalSettingsNames {
     envColor = 'envColor',
     boidColor = 'boidColor',
-    awarenessFactor = 'awarenessFactor',
+    perception = 'perception',
     sensitivity = 'sensitivity',
     is3D = 'is3D',
     speed = 'speed',
@@ -38,7 +38,7 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.boidColor]: 0x5f2ffa,
     },
     [SettingSection.global]: {
-        [ExternalSettingsNames.awarenessFactor]: 3,
+        [ExternalSettingsNames.perception]: 3,
         [ExternalSettingsNames.sensitivity]: 0.01,
         [ExternalSettingsNames.is3D]: true,
         [ExternalSettingsNames.speed]: 0.25,
@@ -47,28 +47,29 @@ export const SETTINGS: Settings = {
         },
     },
     [SettingSection.attraction]: {
-        [ExternalSettingsNames.awarenessFactor]: 100,
-        [ExternalSettingsNames.sensitivity]: 0.01,
+        [ExternalSettingsNames.perception]: 100,
+        [ExternalSettingsNames.sensitivity]: 0.1,
     },
     [SettingSection.obstacles]: {
-        [ExternalSettingsNames.awarenessFactor]: 2,
-        [ExternalSettingsNames.sensitivity]: 0.01,
+        [ExternalSettingsNames.perception]: 2,
+        [ExternalSettingsNames.sensitivity]: 0.1,
     },
     [SettingSection.separation]: {
-        [ExternalSettingsNames.awarenessFactor]: 1,
-        [ExternalSettingsNames.sensitivity]: 0.05,
+        [ExternalSettingsNames.perception]: 1,
+        [ExternalSettingsNames.sensitivity]: 0.1,
     },
     [SettingSection.alignment]: {
-        [ExternalSettingsNames.awarenessFactor]: 1,
-        [ExternalSettingsNames.sensitivity]: 10,
+        [ExternalSettingsNames.perception]: 1,
+        [ExternalSettingsNames.sensitivity]: 0.5,
     },
     [SettingSection.cohesion]: {
+        [ExternalSettingsNames.perception]: 1,
         [ExternalSettingsNames.sensitivity]: 0.1,
     },
 };
 
-SETTINGS.separation.sensitivity = 0;
-// SETTINGS.cohesion.sensitivity = 0;
-SETTINGS.attraction.sensitivity = 0;
-SETTINGS.alignment.sensitivity = 0;
+// SETTINGS.separation.sensitivity = 0;
+SETTINGS.cohesion.sensitivity = 0;
+// SETTINGS.attraction.sensitivity = 0;
+// SETTINGS.alignment.sensitivity = 0;
 // SETTINGS.obstacles.sensitivity = 0;

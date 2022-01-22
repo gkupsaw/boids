@@ -32,7 +32,7 @@ export class CustomGUI {
                                 game.getLights().forEach((l) => l.color.setHex(hex));
                             });
                             break;
-                        case ExternalSettingsNames.awarenessFactor:
+                        case ExternalSettingsNames.perception:
                             folder.add(SETTINGS[section], setting, 0, 10, 1);
                             break;
                         case ExternalSettingsNames.sensitivity:
