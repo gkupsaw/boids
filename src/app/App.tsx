@@ -6,7 +6,7 @@ import { EventSystem } from '../EventSystem/EventSystem';
 import { BoidSystem } from '../BoidSystem/BoidSystem';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { CustomGUI } from '../GUI/CustomGUI';
-import { SETTINGS } from '../Settings/Settings';
+import { PARAMETERS } from '../Settings/Parameters';
 
 type AppProps = {};
 
@@ -23,20 +23,28 @@ class App extends React.Component {
     }
 
     componentDidMount = () => {
-        this.game = new ThreeGame(); //.withDebug();
+        this.game = new ThreeGame();
         this.esys = new EventSystem(document.body);
         // this.esys = new EventSystem(this.game.getRenderer().domElement);
 
         // count: 500, particleSize: 0.04, speed: 0.3
         const bsys = new BoidSystem(this.game.getScene(), {
-            size: 4,
-            count: 200,
-            particleSize: 0.08,
-            speed: SETTINGS.global.speed,
-        }) //.withDebug();
-            .withVisualization();
+            ...PARAMETERS.ParticleSystem.options,
+        });
+
+        if (PARAMETERS.ThreeGame.withDebug) {
+            this.game.withDebug();
+        }
+        if (PARAMETERS.BoidSystem.withDebug) {
+            bsys.withDebug();
+        }
+        if (PARAMETERS.BoidSystem.withVisualization) {
+            bsys.withVisualization();
+        }
+
         // const unsubscribeBsysFromEvents = bsys.subscribeToEvents(this.esys);
         // this.cleanup.push(unsubscribeBsysFromEvents);
+
         this.game.addGameObject(bsys);
 
         this.ui = new CustomGUI(this.game, bsys);

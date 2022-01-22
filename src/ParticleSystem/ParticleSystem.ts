@@ -1,4 +1,3 @@
-import { randVec3InRange } from './../Util/misc';
 import {
     BufferAttribute,
     InstancedBufferAttribute,
@@ -17,25 +16,18 @@ import {
     ParticleSystemOptions,
     ParticleSystemCopyOptions,
     ParticleId,
+    BoidShape,
 } from './ParticleSystemTypes';
-import { VizMode } from '../SpatialPartitioning/SpatialPartitioningTypes';
 import { Dimensions, GameObject } from '../types';
+import { PARAMETERS } from '../Settings/Parameters';
 import { SETTINGS } from '../Settings/Settings';
 
 import { Shaders, Shader } from '../gl/shaders';
 import { SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
 import { Cone } from '../Shapes/Cone';
 import { Sphere } from '../Shapes/Sphere';
-import { randInRange } from '../Util/misc';
+import { randInRange, randVec3InRange } from '../Util/misc';
 import { ParticleSystemVisualization } from './ParticleSystemVisualization';
-
-enum BoidShape {
-    CONE,
-    SPHERE,
-}
-
-const BOID_SHAPE: BoidShape = BoidShape.CONE;
-const GENERATE_CLUSTERS = true;
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
@@ -82,7 +74,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.spatialPartitioning = this.setupSpatialPartitioning();
 
-        if (GENERATE_CLUSTERS) {
+        if (PARAMETERS.ParticleSystem.generateClusters) {
             this.clusterParticles();
         }
 
@@ -129,9 +121,11 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
                 count: 3,
                 value:
                     SETTINGS.global.dimensions === Dimensions.xyz
-                        ? BOID_SHAPE === BoidShape.SPHERE
+                        ? PARAMETERS.ParticleSystem.boidShape === BoidShape.SPHERE
                             ? new Float32Array(Sphere(8, 0.25))
-                            : new Float32Array(Cone(20, 0.25, 0.75))
+                            : PARAMETERS.ParticleSystem.boidShape === BoidShape.CONE
+                            ? new Float32Array(Cone(20, 0.25, 0.75))
+                            : new Float32Array()
                         : new Float32Array([
                               // frontside
                               0.5, -0.5, 0, -0.5, -0.5, 0, 0, 0.5, 0,
@@ -375,12 +369,20 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.viz = new ParticleSystemVisualization(this.mesh.parent, this.size, this.particleSize, {
             opacity: 0.5,
-        })
-            // .withBoundaryVisualization()
-            // .withPointHighlight()
-            .withForceHighlight(Array.from(this.getParticleIds()));
+        });
 
-        this.withSpatialPartitioningVisualization();
+        if (PARAMETERS.ParticleSystem.withBoundaryVisualization) {
+            this.viz.withBoundaryVisualization();
+        }
+        if (PARAMETERS.ParticleSystem.withBoundaryVisualization) {
+            this.viz.withPointHighlight();
+        }
+        if (PARAMETERS.ParticleSystem.withBoundaryVisualization) {
+            this.viz.withForceHighlight(Array.from(this.getParticleIds()));
+        }
+        if (PARAMETERS.ParticleSystem.withSpatialPartitioningVisualization) {
+            this.withSpatialPartitioningVisualization();
+        }
 
         return this;
     };
@@ -388,7 +390,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     withSpatialPartitioningVisualization = () => {
         if (!this.mesh.parent) return this;
 
-        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.NONE);
+        this.spatialPartitioning.withVisualization(this.mesh.parent, PARAMETERS.SpatialPartitioning.vizMode);
     };
 
     highlightParticle = (particleId: ParticleId) => {

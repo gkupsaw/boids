@@ -28,3 +28,8 @@ export enum IAttributes {
     aPosition = 'aPosition',
     aVelocity = 'aVelocity',
 }
+
+export enum BoidShape {
+    CONE,
+    SPHERE,
+}
