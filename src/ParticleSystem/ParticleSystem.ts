@@ -51,6 +51,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
     private readonly cache: Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>;
 
+    private static readonly USE_CACHE = false;
+
     // debug
     private viz!: ParticleSystemVisualization;
 
@@ -275,11 +277,11 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         if (cached) {
             cached.position = p;
-        } else {
+        } else if (ParticleSystem.USE_CACHE) {
             this.cache.set(particleId, { position: p });
         }
 
-        return p;
+        return p.clone();
     };
 
     setParticlePosition = (particleId: ParticleId, p: number[]) => {
@@ -295,7 +297,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         const cached = this.cache.get(particleId);
         if (cached) {
             cached.position = new Vector3(...p);
-        } else {
+        } else if (ParticleSystem.USE_CACHE) {
             this.cache.set(particleId, { position: new Vector3(...p) });
         }
 
@@ -315,11 +317,11 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         if (cached) {
             cached.velocity = v;
-        } else {
+        } else if (ParticleSystem.USE_CACHE) {
             this.cache.set(particleId, { velocity: v });
         }
 
-        return v;
+        return v.clone();
     };
 
     setParticleVelocity = (particleId: ParticleId, v: number[]) => {
@@ -335,7 +337,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         const cached = this.cache.get(particleId);
         if (cached) {
             cached.velocity = new Vector3(...v);
-        } else {
+        } else if (ParticleSystem.USE_CACHE) {
             this.cache.set(particleId, { velocity: new Vector3(...v) });
         }
 
@@ -351,6 +353,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     };
 
     update = (elapsed: number, tick: number) => {
+        if (!ParticleSystem.USE_CACHE && this.cache.size > 0) {
+            throw new Error('Cache should be empty');
+        }
+
         this.cache.clear();
 
         this.shader.uniforms.uTick.value = tick;
@@ -382,7 +388,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     withSpatialPartitioningVisualization = () => {
         if (!this.mesh.parent) return this;
 
-        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.CLUSTER_CENTER);
+        this.spatialPartitioning.withVisualization(this.mesh.parent, VizMode.NONE);
     };
 
     highlightParticle = (particleId: ParticleId) => {
