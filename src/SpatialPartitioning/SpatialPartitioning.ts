@@ -23,6 +23,7 @@ export class SpatialPartitioning {
     private readonly heightDivisions: number;
     private readonly depthDivisions: number;
     private readonly trackClusters: boolean;
+    private readonly minBBsInCluster: number;
 
     private points: Record<PointId, Point>;
     private bbs: Record<BBId, BB>;
@@ -38,12 +39,19 @@ export class SpatialPartitioning {
     private readonly clusterIdGen: Counter;
     private static readonly DEFAULT_CLUSTER_ID: ClusterId = -1;
 
-    constructor(size: number, width: number, height: number, depth: number, { trackClusters = true } = {}) {
+    constructor(
+        size: number,
+        width: number,
+        height: number,
+        depth: number,
+        { trackClusters = true, minBBsInCluster = 1 } = {}
+    ) {
         this.size = size;
         this.widthDivisions = width;
         this.heightDivisions = height;
         this.depthDivisions = depth;
         this.trackClusters = trackClusters;
+        this.minBBsInCluster = minBBsInCluster;
 
         this.bbs = {};
         this.points = {};
@@ -138,6 +146,7 @@ export class SpatialPartitioning {
 
     private gatherCluster = (startingBB: BB) => {
         startingBB.visited = true;
+        const clusterId = this.getNextClusterId();
         const valid = [startingBB];
 
         const center = new Vector3();
@@ -173,7 +182,7 @@ export class SpatialPartitioning {
                             );
 
                             valid.push(neighbor);
-                            neighbor.cluster = this.getNextClusterId();
+                            neighbor.cluster = clusterId;
                             neighbor.visited = true;
                             stack.push(neighbor);
                         }
@@ -193,10 +202,10 @@ export class SpatialPartitioning {
             if (!bb.visited) {
                 const cluster = this.gatherCluster(bb);
 
-                if (cluster.bbs.length > 1) {
+                if (cluster.bbs.length > this.minBBsInCluster) {
                     this.clusters.push(cluster);
-                } else if (cluster.bbs.length === 1) {
-                    cluster.bbs[0].cluster = SpatialPartitioning.DEFAULT_CLUSTER_ID;
+                } else {
+                    cluster.bbs.forEach((bb) => (bb.cluster = SpatialPartitioning.DEFAULT_CLUSTER_ID));
                 }
             }
         }
