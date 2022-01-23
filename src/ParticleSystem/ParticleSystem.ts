@@ -17,6 +17,7 @@ import {
     ParticleSystemCopyOptions,
     ParticleId,
     BoidShape,
+    InitialState,
 } from './ParticleSystemTypes';
 import { Dimensions, GameObject } from '../types';
 import { PARAMETERS } from '../Settings/Parameters';
@@ -53,6 +54,14 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     private static readonly DEFAULT_SPEED = 1;
     private static readonly SPATIAL_PARTITION_RESOLUTION = 0.25;
 
+    // Stores initial state in case the user wants to save it
+    // Could be more robust, but this works
+    private readonly INITIAL_STATE: InitialState = {
+        aPindex: [],
+        aPosition: [],
+        aVelocity: [],
+    };
+
     constructor(scene: Scene, options: ParticleSystemOptions) {
         this.count = options.count;
         this.size = options.size ?? ParticleSystem.DEFAULT_SYSTEM_SIZE;
@@ -70,11 +79,11 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.attributes = this.setupAttributes();
 
-        this.iattributes = this.setupInstancedAttributes();
+        this.iattributes = this.setupInstancedAttributes(options.initialState);
 
         this.spatialPartitioning = this.setupSpatialPartitioning();
 
-        if (PARAMETERS.ParticleSystem.generateClusters) {
+        if (!options.initialState && PARAMETERS.ParticleSystem.generateClusters) {
             this.clusterParticles();
         }
 
@@ -144,21 +153,27 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         return attributes;
     };
 
-    private setupInstancedAttributes = () => {
+    private setupInstancedAttributes = (initialState: InitialState | undefined) => {
         const geometry = this.mesh.geometry;
 
         const iattributes = {
             [IAttributes.aPindex]: {
                 count: 1,
-                value: new Uint16Array(this.count),
+                value: initialState
+                    ? new Uint16Array([...initialState[IAttributes.aPindex]])
+                    : new Uint16Array(this.count),
             },
             [IAttributes.aPosition]: {
                 count: 3,
-                value: new Float32Array(this.count * 3),
+                value: initialState
+                    ? new Float32Array([...initialState[IAttributes.aPosition]])
+                    : new Float32Array(this.count * 3),
             },
             [IAttributes.aVelocity]: {
                 count: 3,
-                value: new Float32Array(this.count * 3),
+                value: initialState
+                    ? new Float32Array([...initialState[IAttributes.aVelocity]])
+                    : new Float32Array(this.count * 3),
             },
         };
 
@@ -166,16 +181,18 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         const aPosition = iattributes[IAttributes.aPosition];
         const aVelocity = iattributes[IAttributes.aVelocity];
 
-        for (let i = 0; i < this.count; i++) {
-            aPindex.value[i] = i;
+        if (!initialState) {
+            for (let i = 0; i < this.count; i++) {
+                aPindex.value[i] = i;
 
-            const v = new Vector3().randomDirection().multiplyScalar(this.speed);
+                const v = new Vector3().randomDirection().multiplyScalar(this.speed);
 
-            for (let dim = 0; dim < aPosition.count; dim++) {
-                if (dim === SETTINGS.global.dimensions) continue;
+                for (let dim = 0; dim < aPosition.count; dim++) {
+                    if (dim === SETTINGS.global.dimensions) continue;
 
-                aPosition.value[i * aPosition.count + dim] = randInRange(this.lowerBoundary, this.upperBoundary);
-                aVelocity.value[i * aVelocity.count + dim] = v.getComponent(dim);
+                    aPosition.value[i * aPosition.count + dim] = randInRange(this.lowerBoundary, this.upperBoundary);
+                    aVelocity.value[i * aVelocity.count + dim] = v.getComponent(dim);
+                }
             }
         }
 
@@ -183,6 +200,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             const { count, value } = iattributes[iattributeName as IAttributes];
             geometry.setAttribute(iattributeName, new InstancedBufferAttribute(value, count, false));
         }
+
+        this.INITIAL_STATE.aPindex = Array.from(aPindex.value);
+        this.INITIAL_STATE.aPosition = Array.from(aPosition.value);
+        this.INITIAL_STATE.aVelocity = Array.from(aVelocity.value);
 
         return iattributes;
     };
@@ -220,6 +241,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
             this.setParticlePosition(i, p);
         }
+
+        this.INITIAL_STATE.aPindex = Array.from(this.accessIAttribute(IAttributes.aPindex));
+        this.INITIAL_STATE.aPosition = Array.from(this.accessIAttribute(IAttributes.aPosition));
+        this.INITIAL_STATE.aVelocity = Array.from(this.accessIAttribute(IAttributes.aVelocity));
     };
 
     private accessIAttribute = (iattr: IAttributes) => {
@@ -249,6 +274,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     getAttributes = () => this.attributes;
 
     getIAttributes = () => this.iattributes;
+
+    getInitialStateData = () => JSON.stringify(this.INITIAL_STATE);
 
     getShader = () => this.shader;
 

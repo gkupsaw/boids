@@ -5,6 +5,7 @@ export type ParticleSystemOptions = {
     size?: number;
     particleSize?: number;
     speed?: number;
+    initialState?: InitialState;
 };
 
 export type ParticleSystemCopyOptions = {
@@ -12,6 +13,7 @@ export type ParticleSystemCopyOptions = {
     size: number;
     particleSize: number;
     speed: number;
+    initialState?: InitialState;
 };
 
 export type Attribute = {
@@ -33,3 +35,9 @@ export enum BoidShape {
     CONE,
     SPHERE,
 }
+
+export type InitialState = {
+    [IAttributes.aPindex]: ParticleId[];
+    [IAttributes.aPosition]: number[];
+    [IAttributes.aVelocity]: number[];
+};

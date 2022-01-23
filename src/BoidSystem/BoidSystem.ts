@@ -6,6 +6,7 @@ import {
     ParticleSystemOptions,
     ParticleSystemCopyOptions,
     ParticleId,
+    InitialState,
 } from '../ParticleSystem/ParticleSystem';
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
@@ -19,7 +20,7 @@ const MAX_FORCE_INFLUENCE = 1e1;
 type BoidForce = (particleId: ParticleId, tick: number) => Vector3;
 
 export class BoidSystem implements GameObject<BoidSystem> {
-    private readonly psys: ParticleSystem;
+    private psys: ParticleSystem;
     private readonly centersOfAttraction: Record<string, Vector3>;
     private readonly obstacles: Record<string, Boundary>;
     private readonly forces: Record<string, BoidForce>;
@@ -191,6 +192,8 @@ export class BoidSystem implements GameObject<BoidSystem> {
         this.psys.setSpeed(speed);
     };
 
+    getInitalStateData = () => this.psys.getInitialStateData();
+
     setCenterOfAttraction = (id: string, p: Vector3) => {
         this.centersOfAttraction[id] = p.clone();
     };
@@ -302,6 +305,22 @@ export class BoidSystem implements GameObject<BoidSystem> {
         }
 
         return new BoidSystem(scene, options);
+    };
+
+    restart = (initialStateData: InitialState | undefined = undefined) => {
+        const scene = this.psys.getMesh().parent as Scene;
+
+        const options: ParticleSystemCopyOptions = {
+            count: this.psys.getCount(),
+            size: this.psys.getSize(),
+            particleSize: this.psys.getParticleSize(),
+            speed: this.psys.getSpeed(),
+            initialState: initialStateData,
+        };
+
+        this.psys.dispose();
+
+        this.psys = new ParticleSystem(scene, options);
     };
 
     dispose = () => {
