@@ -21,14 +21,14 @@ export type BB = {
     indices: Vector3;
 
     points: PointId[];
-    cluster: ClusterId;
+    // cluster: ClusterId;
 
     visited: boolean;
 };
 
 export type BBCluster = {
+    id: ClusterId;
     center: Vector3;
-
     bbs: BB[];
 };
 

@@ -7,79 +7,39 @@ import {
     BufferGeometry,
     Float32BufferAttribute,
     Mesh,
-    SphereGeometry,
     MeshPhongMaterial,
     BoxGeometry,
 } from 'three';
 
-import { PointId, PointData, Point, BB, BBCluster, VizMode, ClusterId, BBId } from './SpatialPartitioningTypes';
+import { PointId, PointData, Point, BB, VizMode, BBId } from './SpatialPartitioningTypes';
 import { LineCube } from '../Shapes/LineCube';
 import { LineSquare } from '../Shapes/LineSquare';
-import { Counter } from '../Util/misc';
 
 export class SpatialPartitioning {
     private readonly size: number;
     private readonly widthDivisions: number;
     private readonly heightDivisions: number;
     private readonly depthDivisions: number;
-    private readonly trackClusters: boolean;
-    private readonly minBBsInCluster: number;
 
     private points: Record<PointId, Point>;
     private bbs: Record<BBId, BB>;
-    private clusters: BBCluster[];
 
-    private readonly clusterCenterVisualizationMesh: Mesh;
-    private readonly clusterCenterVisualizations: Object3D;
     private bbVisualization!: Mesh | Line;
 
     private vizMode: VizMode;
     private viz!: Record<BBId, Mesh | Line>;
 
-    private readonly clusterIdGen: Counter;
-    private static readonly DEFAULT_CLUSTER_ID: ClusterId = -1;
-
-    constructor(
-        size: number,
-        width: number,
-        height: number,
-        depth: number,
-        { trackClusters = true, minBBsInCluster = 1 } = {}
-    ) {
+    constructor(size: number, width: number, height: number, depth: number) {
         this.size = size;
         this.widthDivisions = width;
         this.heightDivisions = height;
         this.depthDivisions = depth;
-        this.trackClusters = trackClusters;
-        this.minBBsInCluster = minBBsInCluster;
 
         this.bbs = {};
         this.points = {};
-        this.clusters = [];
-
-        this.clusterCenterVisualizationMesh = new Mesh(
-            new SphereGeometry(this.boxDepth, 10, 10),
-            new MeshPhongMaterial({ color: 0xff0000 })
-        );
-        (this.clusterCenterVisualizationMesh.material as Material).transparent = true;
-        (this.clusterCenterVisualizationMesh.material as Material).opacity = 0.8;
-        this.clusterCenterVisualizations = new Object3D();
 
         this.vizMode = VizMode.NONE;
-
-        this.clusterIdGen = new Counter();
     }
-
-    private isValidBBIndices = (x: number, y: number, z: number) => {
-        return (
-            x >= 0 && x < this.widthDivisions && y >= 0 && y < this.heightDivisions && z >= 0 && z < this.depthDivisions
-        );
-    };
-
-    private getBBId = (x: number, y: number, z: number): BBId => {
-        return [x, y, z].join(':');
-        // return x + y * this.widthDivisions + z * this.widthDivisions * this.heightDivisions;
-    };
 
     private getBoxIndicesContainingPoint = (pointX: number, pointY: number, pointZ: number) => {
         const boxX = Math.min(
@@ -117,14 +77,6 @@ export class SpatialPartitioning {
         return new Vector3(boxX, boxY, boxZ);
     };
 
-    private getNextClusterId = (): ClusterId => {
-        return this.clusterIdGen.next();
-    };
-
-    private getOccupiedBBs = () => {
-        return Object.values(this.bbs);
-    };
-
     private insertPoint = (pointId: PointId, p: Vector3) => {
         const indices = this.getBoxIndicesContainingPoint(p.x, p.y, p.z);
         const bbId = this.getBBId(indices.x, indices.y, indices.z);
@@ -136,79 +88,12 @@ export class SpatialPartitioning {
                 id: bbId,
                 indices: indices,
                 points: [pointId],
-                cluster: SpatialPartitioning.DEFAULT_CLUSTER_ID,
+                // cluster: SpatialPartitioning.DEFAULT_CLUSTER_ID,
                 visited: false,
             };
         }
 
         this.points[pointId] = { id: pointId, p: p.clone(), bb: bbId };
-    };
-
-    private gatherCluster = (startingBB: BB) => {
-        startingBB.visited = true;
-        const clusterId = this.getNextClusterId();
-        const valid = [startingBB];
-
-        const center = new Vector3();
-        let pCount = 0;
-
-        const stack: BB[] = [startingBB];
-        while (stack.length > 0) {
-            const currBB = stack.pop();
-
-            if (currBB) {
-                const currX = currBB.indices.x;
-                const currY = currBB.indices.y;
-                const currZ = currBB.indices.z;
-
-                const neighbors: [number, number, number][] = [
-                    [currX + 1, currY, currZ],
-                    [currX - 1, currY, currZ],
-                    [currX, currY + 1, currZ],
-                    [currX, currY - 1, currZ],
-                    [currX, currY, currZ + 1],
-                    [currX, currY, currZ - 1],
-                ];
-
-                for (const [neighborX, neighborY, neighborZ] of neighbors) {
-                    if (this.isValidBBIndices(neighborX, neighborY, neighborZ)) {
-                        const neighborId = this.getBBId(neighborX, neighborY, neighborZ);
-                        const neighbor = this.bbs[neighborId];
-
-                        if (neighbor && !neighbor.visited) {
-                            pCount += neighbor.points.length;
-                            center.add(
-                                neighbor.points.reduce((acc, pointId) => acc.add(this.points[pointId].p), new Vector3())
-                            );
-
-                            valid.push(neighbor);
-                            neighbor.cluster = clusterId;
-                            neighbor.visited = true;
-                            stack.push(neighbor);
-                        }
-                    }
-                }
-            }
-        }
-
-        center.multiplyScalar(1 / pCount);
-
-        return { center, bbs: valid };
-    };
-
-    private gatherAllClusters = () => {
-        const activeBBs = this.getOccupiedBBs();
-        for (const bb of activeBBs) {
-            if (!bb.visited) {
-                const cluster = this.gatherCluster(bb);
-
-                if (cluster.bbs.length > this.minBBsInCluster) {
-                    this.clusters.push(cluster);
-                } else {
-                    cluster.bbs.forEach((bb) => (bb.cluster = SpatialPartitioning.DEFAULT_CLUSTER_ID));
-                }
-            }
-        }
     };
 
     get boxWidth() {
@@ -223,6 +108,12 @@ export class SpatialPartitioning {
         return this.size / this.depthDivisions;
     }
 
+    isValidBBIndices = (x: number, y: number, z: number) => {
+        return (
+            x >= 0 && x < this.widthDivisions && y >= 0 && y < this.heightDivisions && z >= 0 && z < this.depthDivisions
+        );
+    };
+
     getSize = () => this.size;
 
     getWidth = () => this.widthDivisions;
@@ -231,14 +122,29 @@ export class SpatialPartitioning {
 
     getDepth = () => this.depthDivisions;
 
-    getBB = (x: number, y: number, z: number) => this.bbs[this.getBBId(x, y, z)];
+    getPoint = (id: PointId) => {
+        return this.points[id];
+    };
+
+    getBBId = (x: number, y: number, z: number): BBId => {
+        return [x, y, z].join(':');
+        // return x + y * this.widthDivisions + z * this.widthDivisions * this.heightDivisions;
+    };
+
+    getBB = (x: number, y: number, z: number) => {
+        return this.bbs[this.getBBId(x, y, z)];
+    };
+
+    getBBFromId = (id: BBId): BB => {
+        return this.bbs[id];
+    };
 
     getBBForPoint = (pointId: PointId) => {
         return this.bbs[this.points[pointId].bb];
     };
 
-    getClusterForPoint = (pointId: PointId) => {
-        return this.clusters[this.getBBForPoint(pointId).cluster];
+    getOccupiedBBs = () => {
+        return Object.values(this.bbs);
     };
 
     getPointsInRangeOfPoint = (pointId: PointId, range: number) => {
@@ -302,8 +208,6 @@ export class SpatialPartitioning {
 
         this.bbs = {};
         this.points = {};
-        this.clusters = [];
-        this.clusterIdGen.reset();
     };
 
     update = (points: PointData[]) => {
@@ -314,25 +218,10 @@ export class SpatialPartitioning {
             this.insertPoint(id, p);
         });
 
-        if (this.trackClusters) {
-            this.gatherAllClusters();
-        }
+        // clusterManager.update();
 
-        if (this.vizMode === VizMode.CLUSTER || this.vizMode === VizMode.CLUSTER_SKELETON) {
-            this.clusters.forEach(({ bbs }) => {
-                this.highlightBBs(bbs.map(({ id }) => id));
-            });
-        } else if (this.vizMode === VizMode.BB) {
+        if (this.vizMode === VizMode.BB) {
             this.highlightBBs(this.getOccupiedBBs().map(({ id }) => id));
-        } else if (this.vizMode === VizMode.CLUSTER_CENTER) {
-            this.clusterCenterVisualizations.clear();
-
-            this.clusters.forEach(({ center }) => {
-                const m: Mesh = new Mesh();
-                m.copy(this.clusterCenterVisualizationMesh);
-                m.position.copy(center);
-                this.clusterCenterVisualizations.add(m);
-            });
         }
     };
 
@@ -343,9 +232,12 @@ export class SpatialPartitioning {
         });
     };
 
+    hasVisualization = () => {
+        return Boolean(this.viz);
+    };
+
     withVisualization = (parent: Object3D, vizMode: VizMode) => {
         this.withBBVisualization(parent, vizMode);
-        this.withClusterCenterVisualization(parent);
     };
 
     withBBVisualization = (parent: Object3D, vizMode: VizMode) => {
@@ -402,10 +294,6 @@ export class SpatialPartitioning {
         return this;
     };
 
-    withClusterCenterVisualization = (parent: Object3D) => {
-        parent.add(this.clusterCenterVisualizations);
-    };
-
     dispose = () => {
         if (this.viz) {
             this.bbVisualization.geometry.dispose();
@@ -417,9 +305,5 @@ export class SpatialPartitioning {
                 box.removeFromParent();
             });
         }
-
-        this.clusterCenterVisualizationMesh.geometry.dispose();
-        (this.clusterCenterVisualizationMesh.material as Material).dispose();
-        this.clusterCenterVisualizations.removeFromParent();
     };
 }
