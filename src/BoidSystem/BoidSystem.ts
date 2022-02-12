@@ -174,12 +174,16 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     private tendTowardFlockCenter = (particleId: ParticleId) => {
+        const particleSize = this.psys.getParticleSize();
+
+        const awareness = SETTINGS.cohesion.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.cohesion.sensitivity;
-        const cluster = this.psys.getParticleCluster(particleId);
 
-        if (sensitivity === 0 || !cluster) return new Vector3();
+        const centroid = this.psys.getParticleClusterCentroid(particleId, awareness);
 
-        const attractionDir = cluster.center.clone().sub(this.psys.getParticlePosition(particleId)).normalize();
+        if (sensitivity === 0 || centroid.lengthSq() === 0) return new Vector3();
+
+        const attractionDir = centroid.clone().sub(this.psys.getParticlePosition(particleId)).normalize();
         // const w = 1 / rayToCenter.lengthSq();
         // const w = Math.min(rayToCenter.lengthSq(), 1);
 

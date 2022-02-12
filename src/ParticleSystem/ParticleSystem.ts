@@ -29,7 +29,6 @@ import { Cone } from '../Shapes/Cone';
 import { Sphere } from '../Shapes/Sphere';
 import { randInRange, randVec3InRange } from '../Util/misc';
 import { ParticleSystemVisualization } from './ParticleSystemVisualization';
-import { ClusterManager } from '../SpatialPartitioning/ClusterManager';
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
@@ -42,7 +41,6 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly iattributes: { [key in IAttributes]: Attribute };
     private readonly mesh: Mesh;
     private readonly spatialPartitioning: SpatialPartitioning;
-    private readonly clusterManager: ClusterManager;
 
     private readonly cache: Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>;
 
@@ -84,7 +82,6 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         this.iattributes = this.setupInstancedAttributes(options.initialState);
 
         this.spatialPartitioning = this.setupSpatialPartitioning();
-        this.clusterManager = new ClusterManager(this.spatialPartitioning);
 
         if (!options.initialState && PARAMETERS.ParticleSystem.generateClusters) {
             this.clusterParticles();
@@ -366,9 +363,14 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         geometry.attributes.aVelocity.needsUpdate = true;
     };
 
-    getParticleCluster = (particleId: ParticleId) => {
-        return this.clusterManager.getClusterForPoint(particleId);
-        // return this.spatialPartitioning.getClusterForPoint(particleId);
+    getParticleClusterCentroid = (particleId: ParticleId, perceptionDistance: number) => {
+        const particles = this.getPerceptibleParticles(particleId, perceptionDistance);
+
+        if (particles.length === 0) return new Vector3();
+
+        return particles
+            .reduce((acc, p) => acc.add(this.getParticlePosition(p)), new Vector3())
+            .divideScalar(particles.length);
     };
 
     getPerceptibleParticles = (particleId: ParticleId, perceptionDistance: number): ParticleId[] => {
@@ -465,7 +467,6 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         }
 
         this.spatialPartitioning.dispose();
-        this.clusterManager.dispose();
     };
 }
 

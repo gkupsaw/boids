@@ -187,7 +187,7 @@ export class SpatialPartitioning {
                             //     }
                             // });
                             // } else {
-                            points.push(...bb.points);
+                            bb.points.forEach((bbP) => bbP !== pointId && points.push(bbP));
                             // }
                         }
                     }
