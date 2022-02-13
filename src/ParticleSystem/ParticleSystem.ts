@@ -86,7 +86,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         this.spatialPartitioning = this.setupSpatialPartitioning();
 
         const awareness = SETTINGS.global.perception * this.particleSize;
-        this.neighborManager = new NeighborManager(this.spatialPartitioning, awareness);
+        const attentiveness = SETTINGS.global.attentiveness;
+        this.neighborManager = new NeighborManager(this.spatialPartitioning, awareness, attentiveness);
 
         if (!options.initialState && PARAMETERS.ParticleSystem.generateClusters) {
             this.clusterParticles();

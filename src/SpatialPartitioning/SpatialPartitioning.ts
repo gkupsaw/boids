@@ -41,28 +41,21 @@ export class SpatialPartitioning {
         this.vizMode = VizMode.NONE;
     }
 
-    private getBoxIndicesContainingPoint = (pointX: number, pointY: number, pointZ: number) => {
+    private worldToBBSpace = (worldX: number, worldY: number, worldZ: number) => {
         const boxX = Math.min(
             this.widthDivisions - 1,
-            Math.max(0, Math.floor((pointX / this.size) * this.widthDivisions + this.widthDivisions / 2))
+            Math.max(0, Math.floor((worldX / this.size) * this.widthDivisions + this.widthDivisions / 2))
         );
         const boxY = Math.min(
             this.heightDivisions - 1,
-            Math.max(0, Math.floor((pointY / this.size) * this.heightDivisions + this.heightDivisions / 2))
+            Math.max(0, Math.floor((worldY / this.size) * this.heightDivisions + this.heightDivisions / 2))
         );
         const boxZ = Math.min(
             this.depthDivisions - 1,
-            Math.max(0, Math.floor((pointZ / this.size) * this.depthDivisions + this.depthDivisions / 2))
+            Math.max(0, Math.floor((worldZ / this.size) * this.depthDivisions + this.depthDivisions / 2))
         );
 
-        const indices = new Vector3(boxX, boxY, boxZ);
-
-        if (indices.toArray().some((i) => i !== Math.floor(i)))
-            throw new Error(
-                'Indices must be whole numbers, got ' + indices.toArray() + ' for ' + [pointX, pointY, pointZ]
-            );
-
-        return indices;
+        return new Vector3(boxX, boxY, boxZ);
     };
 
     private getBoxPositionFromIndices = (widthIndex: number, heightIndex: number, depthIndex: number) => {
@@ -78,7 +71,7 @@ export class SpatialPartitioning {
     };
 
     private insertPoint = (pointId: PointId, p: Vector3) => {
-        const indices = this.getBoxIndicesContainingPoint(p.x, p.y, p.z);
+        const indices = this.worldToBBSpace(p.x, p.y, p.z);
         const bbId = this.getBBId(indices.x, indices.y, indices.z);
 
         if (this.bbs[bbId]) {

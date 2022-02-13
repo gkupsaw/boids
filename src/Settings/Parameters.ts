@@ -13,7 +13,7 @@ export const PARAMETERS = {
     },
     ParticleSystem: {
         options: {
-            size: 8,
+            size: 4,
             count: 4000,
             particleSize: 0.08,
             get speed() {

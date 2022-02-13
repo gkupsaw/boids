@@ -14,6 +14,7 @@ export enum ExternalSettingsNames {
     envColor = 'envColor',
     boidColor = 'boidColor',
     perception = 'perception',
+    attentiveness = 'attentiveness',
     sensitivity = 'sensitivity',
     is3D = 'is3D',
     speed = 'speed',
@@ -38,7 +39,8 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.boidColor]: 0x5f2ffa,
     },
     [SettingSection.global]: {
-        [ExternalSettingsNames.perception]: 2,
+        [ExternalSettingsNames.perception]: 1,
+        [ExternalSettingsNames.attentiveness]: 0.1,
         [ExternalSettingsNames.sensitivity]: 0.01,
         [ExternalSettingsNames.is3D]: true,
         [ExternalSettingsNames.speed]: 0.25,
