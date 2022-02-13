@@ -29,6 +29,7 @@ import { Cone } from '../Shapes/Cone';
 import { Sphere } from '../Shapes/Sphere';
 import { randInRange, randVec3InRange } from '../Util/misc';
 import { ParticleSystemVisualization } from './ParticleSystemVisualization';
+import { NeighborManager } from '../SpatialPartitioning/NeighborManager';
 
 export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly count: number;
@@ -41,6 +42,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     private readonly iattributes: { [key in IAttributes]: Attribute };
     private readonly mesh: Mesh;
     private readonly spatialPartitioning: SpatialPartitioning;
+    private readonly neighborManager: NeighborManager;
 
     private readonly cache: Map<ParticleId, { position?: Vector3; velocity?: Vector3 }>;
 
@@ -82,6 +84,9 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         this.iattributes = this.setupInstancedAttributes(options.initialState);
 
         this.spatialPartitioning = this.setupSpatialPartitioning();
+
+        const awareness = SETTINGS.global.perception * this.particleSize;
+        this.neighborManager = new NeighborManager(this.spatialPartitioning, awareness);
 
         if (!options.initialState && PARAMETERS.ParticleSystem.generateClusters) {
             this.clusterParticles();
@@ -363,8 +368,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         geometry.attributes.aVelocity.needsUpdate = true;
     };
 
-    getParticleClusterCentroid = (particleId: ParticleId, perceptionDistance: number) => {
-        const particles = this.getPerceptibleParticles(particleId, perceptionDistance);
+    getParticleClusterCentroid = (particleId: ParticleId) => {
+        const particles = this.getPerceptibleParticles(particleId);
 
         if (particles.length === 0) return new Vector3();
 
@@ -373,8 +378,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             .divideScalar(particles.length);
     };
 
-    getPerceptibleParticles = (particleId: ParticleId, perceptionDistance: number): ParticleId[] => {
-        return this.spatialPartitioning.getPointsInRangeOfPoint(particleId, perceptionDistance);
+    getPerceptibleParticles = (particleId: ParticleId): ParticleId[] => {
+        return this.neighborManager.getParticleNeighbors(particleId);
     };
 
     update = (elapsed: number, tick: number) => {
@@ -386,9 +391,11 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.shader.uniforms.uTick.value = tick;
 
-        this.spatialPartitioning.update(
-            Array.from(this.getParticleIds()).map((id) => ({ id, p: this.getParticlePosition(id) }))
-        );
+        const particleIdsArray = Array.from(this.getParticleIds());
+
+        this.spatialPartitioning.update(particleIdsArray.map((id) => ({ id, p: this.getParticlePosition(id) })));
+
+        this.neighborManager.update(particleIdsArray);
 
         this.getParticleIds().forEach((particleId) => {
             this.moveParticle(particleId, tick);

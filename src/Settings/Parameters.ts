@@ -13,8 +13,8 @@ export const PARAMETERS = {
     },
     ParticleSystem: {
         options: {
-            size: 4,
-            count: 2000,
+            size: 8,
+            count: 4000,
             particleSize: 0.08,
             get speed() {
                 return SETTINGS.global.speed;

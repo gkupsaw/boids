@@ -70,7 +70,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
         const p = this.psys.getParticlePosition(particleId);
 
-        const awareness = SETTINGS.attraction.perception * particleSize;
+        const awareness = SETTINGS.global.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.attraction.sensitivity;
 
         let n = 0;
@@ -95,7 +95,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
     private avoidObstacles = (particleId: ParticleId) => {
         const particleSize = this.psys.getParticleSize();
 
-        const awareness = SETTINGS.obstacles.perception * particleSize;
+        const awareness = SETTINGS.global.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.obstacles.sensitivity;
 
         const pi = this.psys.getParticlePosition(particleId);
@@ -114,18 +114,15 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     private separateFromNeighbors = (particleId: ParticleId) => {
-        const particleSize = this.psys.getParticleSize();
-
         const p = this.psys.getParticlePosition(particleId);
 
-        const awareness = SETTINGS.separation.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.separation.sensitivity;
 
         const dir = new Vector3();
 
         if (sensitivity === 0) return dir;
 
-        const surroundingParticles = this.psys.getPerceptibleParticles(particleId, awareness);
+        const surroundingParticles = this.psys.getPerceptibleParticles(particleId);
 
         if (surroundingParticles.length === 0) return new Vector3();
 
@@ -144,18 +141,15 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     private alignWithNeighbors = (particleId: ParticleId) => {
-        const particleSize = this.psys.getParticleSize();
-
         const p = this.psys.getParticlePosition(particleId);
 
-        const awareness = SETTINGS.alignment.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.alignment.sensitivity;
 
         const dir = new Vector3();
 
         if (sensitivity === 0) return dir;
 
-        const surroundingParticles = this.psys.getPerceptibleParticles(particleId, awareness);
+        const surroundingParticles = this.psys.getPerceptibleParticles(particleId);
 
         if (surroundingParticles.length === 0) return new Vector3();
 
@@ -174,12 +168,9 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     private tendTowardFlockCenter = (particleId: ParticleId) => {
-        const particleSize = this.psys.getParticleSize();
-
-        const awareness = SETTINGS.cohesion.perception * particleSize;
         const sensitivity = SETTINGS.global.sensitivity * SETTINGS.cohesion.sensitivity;
 
-        const centroid = this.psys.getParticleClusterCentroid(particleId, awareness);
+        const centroid = this.psys.getParticleClusterCentroid(particleId);
 
         if (sensitivity === 0 || centroid.lengthSq() === 0) return new Vector3();
 

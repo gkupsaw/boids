@@ -24,7 +24,7 @@ enum InternalSettingsNames {
 }
 
 export type Settings = {
-    [index in SettingSection]: { [index: string]: any };
+    [settingGroup in SettingSection]: { [settingName: string]: any };
 };
 
 const internalSettingsSet = new Set<string>(Object.values(InternalSettingsNames));
@@ -38,7 +38,7 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.boidColor]: 0x5f2ffa,
     },
     [SettingSection.global]: {
-        [ExternalSettingsNames.perception]: 3,
+        [ExternalSettingsNames.perception]: 2,
         [ExternalSettingsNames.sensitivity]: 0.01,
         [ExternalSettingsNames.is3D]: true,
         [ExternalSettingsNames.speed]: 0.25,
@@ -47,29 +47,24 @@ export const SETTINGS: Settings = {
         },
     },
     [SettingSection.attraction]: {
-        [ExternalSettingsNames.perception]: 100,
         [ExternalSettingsNames.sensitivity]: 0.1,
     },
     [SettingSection.obstacles]: {
-        [ExternalSettingsNames.perception]: 2,
         [ExternalSettingsNames.sensitivity]: 0.1,
     },
     [SettingSection.separation]: {
-        [ExternalSettingsNames.perception]: 1,
         [ExternalSettingsNames.sensitivity]: 0.1,
     },
     [SettingSection.alignment]: {
-        [ExternalSettingsNames.perception]: 1,
         [ExternalSettingsNames.sensitivity]: 0.5,
     },
     [SettingSection.cohesion]: {
-        [ExternalSettingsNames.perception]: 1,
-        [ExternalSettingsNames.sensitivity]: 0.1,
+        [ExternalSettingsNames.sensitivity]: 1,
     },
 };
 
 // SETTINGS.separation.sensitivity = 0;
-SETTINGS.cohesion.sensitivity = 0;
+// SETTINGS.cohesion.sensitivity = 0;
 // SETTINGS.attraction.sensitivity = 0;
 // SETTINGS.alignment.sensitivity = 0;
 // SETTINGS.obstacles.sensitivity = 0;
