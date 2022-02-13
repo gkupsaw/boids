@@ -32,12 +32,10 @@ export class CustomGUI {
             settingsEvents: parsedSettingsEvents,
         };
 
-        const missingSimDataKey = Object.keys(particleSystemSimData).find(
-            (k) => !parsedParticleSystemSimData.initialState[k]
-        );
+        const missingSimDataKey = Object.keys(particleSystemSimData).find((k) => !parsedParticleSystemSimData[k]);
 
         if (missingSimDataKey) {
-            throw new Error(`Ill-formatted initial state (missing ${missingSimDataKey} key)`);
+            throw new Error(`Ill-formatted particle simulation data (missing ${missingSimDataKey} key)`);
         }
 
         const missingInitialStateKey = Object.keys(initialState).find((k) => !parsedInitialState[k]);
