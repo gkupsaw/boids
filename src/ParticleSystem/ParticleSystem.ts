@@ -18,6 +18,7 @@ import {
     ParticleId,
     BoidShape,
     InitialState,
+    Force,
 } from './ParticleSystemTypes';
 import { Dimensions, GameObject } from '../types';
 import { PARAMETERS } from '../Settings/Parameters';
@@ -85,7 +86,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.spatialPartitioning = this.setupSpatialPartitioning();
 
-        const awareness = SETTINGS.global.perception * this.particleSize;
+        const awareness = this.getParticlePerception(SETTINGS.global.perception);
         const attentiveness = SETTINGS.global.attentiveness;
         this.neighborManager = new NeighborManager(this.spatialPartitioning, awareness, attentiveness);
 
@@ -95,6 +96,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         scene.add(this.mesh);
     }
+
+    private getParticlePerception = (basePerception: number) => {
+        return basePerception * this.particleSize;
+    };
 
     private get lowerBoundary() {
         return -(this.size / 2 - this.particleSize / 2);
@@ -275,6 +280,15 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
     setSpeed = (speed: number) => (this.speed = speed);
 
+    setParticlePerception = (particlePerception: number) => {
+        this.viz.setParticlePerception(particlePerception);
+        this.neighborManager.setParticlePerception(particlePerception);
+    };
+
+    setParticleAttentiveness = (particleAwareness: number) => {
+        this.neighborManager.setParticleAttentiveness(particleAwareness);
+    };
+
     getAttributes = () => this.attributes;
 
     getIAttributes = () => this.iattributes;
@@ -413,10 +427,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         if (PARAMETERS.ParticleSystem.withBoundaryVisualization) {
             this.viz.withBoundaryVisualization();
         }
-        if (PARAMETERS.ParticleSystem.withBoundaryVisualization) {
-            this.viz.withPointHighlight();
+        if (PARAMETERS.ParticleSystem.withPointHighlight) {
+            this.viz.withPointHighlight(this.neighborManager.getParticlePerception());
         }
-        if (PARAMETERS.ParticleSystem.withBoundaryVisualization) {
+        if (PARAMETERS.ParticleSystem.withForceHighlight) {
             this.viz.withForceHighlight(Array.from(this.getParticleIds()));
         }
         if (PARAMETERS.ParticleSystem.withSpatialPartitioningVisualization) {
@@ -432,12 +446,18 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         this.spatialPartitioning.withVisualization(this.mesh.parent, PARAMETERS.SpatialPartitioning.vizMode);
     };
 
-    highlightParticle = (particleId: ParticleId) => {
-        this.viz?.highlightPoint(this.getParticlePosition(particleId));
-    };
+    updateParticleVisualization = (particleId: ParticleId, forces: Force[]) => {
+        const p = this.getParticlePosition(particleId);
 
-    highlightForce = (particleId: ParticleId, forceName: string, direction: Vector3) => {
-        this.viz?.highlightForce(particleId, forceName, this.getParticlePosition(particleId), direction);
+        if (PARAMETERS.ParticleSystem.withPointHighlight) {
+            this.viz.highlightPoint(p);
+        }
+
+        if (PARAMETERS.ParticleSystem.withForceHighlight) {
+            forces.forEach(({ name, val }) => {
+                this.viz.highlightForce(particleId, name, p, val);
+            });
+        }
     };
 
     copy = () => {

@@ -9,7 +9,7 @@ export const PARAMETERS = {
     },
     BoidSystem: {
         withDebug: false,
-        withVisualization: false,
+        withVisualization: true,
     },
     ParticleSystem: {
         options: {
@@ -22,7 +22,7 @@ export const PARAMETERS = {
         },
 
         withBoundaryVisualization: false,
-        withPointHighlight: false,
+        withPointHighlight: true,
         withForceHighlight: false,
         withSpatialPartitioningVisualization: false,
         generateClusters: true,

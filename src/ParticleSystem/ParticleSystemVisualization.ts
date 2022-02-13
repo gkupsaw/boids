@@ -49,6 +49,10 @@ export class ParticleSystemVisualization implements Visualization {
         return this;
     }
 
+    setParticlePerception = (particlePerception: number) => {
+        this.pointHighlight.scale.set(particlePerception, particlePerception, particlePerception);
+    };
+
     withBoundaryVisualization = () => {
         if (this.boundary) this.disposeBoundary();
 
@@ -66,14 +70,15 @@ export class ParticleSystemVisualization implements Visualization {
         return this;
     };
 
-    withPointHighlight = () => {
+    withPointHighlight = (perception: number) => {
         if (this.pointHighlight) this.disposePointHighlight();
 
         const mat = new MeshBasicMaterial({ color: 0xff0000 });
         mat.transparent = true;
         mat.opacity = this.opacity;
 
-        const pointHighlight = new Mesh(new SphereGeometry(this.particleSize, 10, 10), mat);
+        const pointHighlight = new Mesh(new SphereGeometry(1, 10, 10), mat);
+        pointHighlight.scale.set(perception, perception, perception);
         this.parent.add(pointHighlight);
 
         this.pointHighlight = pointHighlight;

@@ -40,7 +40,7 @@ export const SETTINGS: Settings = {
     },
     [SettingSection.global]: {
         [ExternalSettingsNames.perception]: 1,
-        [ExternalSettingsNames.attentiveness]: 0.1,
+        [ExternalSettingsNames.attentiveness]: 0.5,
         [ExternalSettingsNames.sensitivity]: 0.01,
         [ExternalSettingsNames.is3D]: true,
         [ExternalSettingsNames.speed]: 0.25,
@@ -61,7 +61,7 @@ export const SETTINGS: Settings = {
         [ExternalSettingsNames.sensitivity]: 0.5,
     },
     [SettingSection.cohesion]: {
-        [ExternalSettingsNames.sensitivity]: 1,
+        [ExternalSettingsNames.sensitivity]: 0.5,
     },
 };
 

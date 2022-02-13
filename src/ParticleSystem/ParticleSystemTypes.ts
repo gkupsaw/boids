@@ -1,4 +1,8 @@
+import { Vector3 } from 'three';
+
 export type ParticleId = number;
+
+export type Force = { name: string; val: Vector3 };
 
 export type ParticleSystemOptions = {
     count: number;

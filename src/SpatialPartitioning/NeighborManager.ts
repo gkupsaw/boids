@@ -4,12 +4,12 @@ import { sampleArray } from '../Util/misc';
 
 export class NeighborManager {
     private readonly sp: SpatialPartitioning;
-    private readonly particlePerception: number;
-    private readonly particleAttentiveness: number;
+    private particlePerception: number;
+    private particleAttentiveness: number;
 
     private readonly particlesToNeighbors: Map<ParticleId, ParticleId[]>;
 
-    private static readonly MAX_PARTICLES_TO_NOTICE = 100;
+    private static readonly MAX_PARTICLES_TO_NOTICE = 10;
 
     constructor(sp: SpatialPartitioning, particlePerception: number, particleAttentiveness: number) {
         this.sp = sp;
@@ -18,6 +18,16 @@ export class NeighborManager {
 
         this.particlesToNeighbors = new Map<ParticleId, ParticleId[]>();
     }
+
+    getParticlePerception = () => this.particlePerception;
+
+    setParticlePerception = (particlePerception: number) => {
+        this.particlePerception = particlePerception;
+    };
+
+    setParticleAttentiveness = (particleAttentiveness: number) => {
+        this.particleAttentiveness = particleAttentiveness;
+    };
 
     getParticleNeighbors = (particleId: ParticleId) => {
         const particlesArray = this.particlesToNeighbors.get(particleId) ?? [];

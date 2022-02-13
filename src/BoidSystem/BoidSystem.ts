@@ -7,6 +7,7 @@ import {
     ParticleSystemCopyOptions,
     ParticleId,
     InitialState,
+    Force,
 } from '../ParticleSystem/ParticleSystem';
 import { SETTINGS } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
@@ -187,6 +188,14 @@ export class BoidSystem implements GameObject<BoidSystem> {
         this.psys.setSpeed(speed);
     };
 
+    setParticlePerception = (particlePerception: number) => {
+        this.psys.setParticlePerception(particlePerception);
+    };
+
+    setParticleAttentiveness = (particleAwareness: number) => {
+        this.psys.setParticleAttentiveness(particleAwareness);
+    };
+
     getInitalStateData = () => this.psys.getInitialStateData();
 
     setCenterOfAttraction = (id: string, p: Vector3) => {
@@ -220,20 +229,24 @@ export class BoidSystem implements GameObject<BoidSystem> {
         const particleIds = this.psys.getParticleIds();
         const speed = this.psys.getSpeed();
 
-        const indivForces: { name: string; val: Vector3 }[] = [];
+        const particlesToVisualize = new Set([0]);
+        const particlesToVisualizeInformation: Record<ParticleId, Force[]> = Array.from(particlesToVisualize).reduce(
+            (acc, particleId) => ({ ...acc, [particleId]: [] }),
+            {}
+        );
+
         const avgForces: { [name: string]: Vector3 } = {};
+
         particleIds.forEach((particleId) => {
             const adjustment = Object.keys(this.forces).reduce((acc, name) => {
                 const force = this.forces[name];
                 const val = force(particleId, tick);
 
-                if (name === 'Cohesion') this.psys.highlightForce(particleId, name, val);
+                if (particlesToVisualize.has(particleId)) {
+                    particlesToVisualizeInformation[particleId].push({ name, val });
+                }
 
                 if (this.boidStats) {
-                    if (particleId === this.boidOfInterest) {
-                        indivForces.push({ name, val });
-                    }
-
                     if (avgForces[name]) {
                         avgForces[name].add(val);
                     } else {
@@ -250,18 +263,16 @@ export class BoidSystem implements GameObject<BoidSystem> {
             this.psys.setParticleVelocity(particleId, vf.toArray());
         });
 
+        particlesToVisualize.forEach((particleId) => {
+            this.psys.updateParticleVisualization(particleId, particlesToVisualizeInformation[particleId]);
+        });
+
         if (this.boidStats) {
-            this.psys.highlightParticle(this.boidOfInterest);
-
-            indivForces.forEach(({ name, val }) => {
-                this.psys.highlightForce(this.boidOfInterest, name, val);
-            });
-
             this.boidStats.update({
                 id: this.boidOfInterest,
                 p: this.psys.getParticlePosition(this.boidOfInterest),
                 v: this.psys.getParticleVelocity(this.boidOfInterest),
-                forces: indivForces,
+                forces: particlesToVisualizeInformation[this.boidOfInterest],
                 avgForces: avgForces,
             });
         }

@@ -121,7 +121,14 @@ export class CustomGUI {
                             });
                             break;
                         case ExternalSettingsNames.perception:
-                            folder.add(SETTINGS[section], setting, 0, 10, 1);
+                            folder
+                                .add(SETTINGS[section], setting, 0, 10, 1)
+                                .onChange((v) => bsys.setParticlePerception(v));
+                            break;
+                        case ExternalSettingsNames.attentiveness:
+                            folder
+                                .add(SETTINGS[section], setting, 0, 1, 0.01)
+                                .onChange((v) => bsys.setParticleAttentiveness(v));
                             break;
                         case ExternalSettingsNames.sensitivity:
                             folder.add(SETTINGS[section], setting, 0, 1, 0.01);
