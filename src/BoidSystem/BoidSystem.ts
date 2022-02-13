@@ -9,7 +9,7 @@ import {
     InitialState,
     Force,
 } from '../ParticleSystem/ParticleSystem';
-import { SETTINGS } from '../Settings/Settings';
+import { SETTINGS, SettingSection, ExternalSettingNames } from '../Settings/Settings';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { BoidStats, BoidStatsObject } from './debug/BoidStats';
 import { EventSystem } from '../EventSystem/EventSystem';
@@ -25,6 +25,7 @@ export class BoidSystem implements GameObject<BoidSystem> {
     private readonly centersOfAttraction: Record<string, Vector3>;
     private readonly obstacles: Record<string, Boundary>;
     private readonly forces: Record<string, BoidForce>;
+    private startTime: string | null = null;
 
     private boidStats!: BoidStatsObject;
     private boidOfInterest!: number;
@@ -71,8 +72,10 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
         const p = this.psys.getParticlePosition(particleId);
 
-        const awareness = SETTINGS.global.perception * particleSize;
-        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.attraction.sensitivity;
+        const awareness = SETTINGS.getGlobalSetting(ExternalSettingNames.perception) * particleSize;
+        const sensitivity =
+            SETTINGS.getGlobalSetting(ExternalSettingNames.sensitivity) *
+            SETTINGS.getSetting(SettingSection.attraction, ExternalSettingNames.sensitivity);
 
         let n = 0;
         const dir = new Vector3();
@@ -96,8 +99,10 @@ export class BoidSystem implements GameObject<BoidSystem> {
     private avoidObstacles = (particleId: ParticleId) => {
         const particleSize = this.psys.getParticleSize();
 
-        const awareness = SETTINGS.global.perception * particleSize;
-        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.obstacles.sensitivity;
+        const awareness = SETTINGS.getGlobalSetting(ExternalSettingNames.perception) * particleSize;
+        const sensitivity =
+            SETTINGS.getGlobalSetting(ExternalSettingNames.sensitivity) *
+            SETTINGS.getSetting(SettingSection.obstacles, ExternalSettingNames.sensitivity);
 
         const pi = this.psys.getParticlePosition(particleId);
 
@@ -117,7 +122,9 @@ export class BoidSystem implements GameObject<BoidSystem> {
     private separateFromNeighbors = (particleId: ParticleId) => {
         const p = this.psys.getParticlePosition(particleId);
 
-        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.separation.sensitivity;
+        const sensitivity =
+            SETTINGS.getGlobalSetting(ExternalSettingNames.sensitivity) *
+            SETTINGS.getSetting(SettingSection.separation, ExternalSettingNames.sensitivity);
 
         const dir = new Vector3();
 
@@ -144,7 +151,9 @@ export class BoidSystem implements GameObject<BoidSystem> {
     private alignWithNeighbors = (particleId: ParticleId) => {
         const p = this.psys.getParticlePosition(particleId);
 
-        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.alignment.sensitivity;
+        const sensitivity =
+            SETTINGS.getGlobalSetting(ExternalSettingNames.sensitivity) *
+            SETTINGS.getSetting(SettingSection.alignment, ExternalSettingNames.sensitivity);
 
         const dir = new Vector3();
 
@@ -169,7 +178,9 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     private tendTowardFlockCenter = (particleId: ParticleId) => {
-        const sensitivity = SETTINGS.global.sensitivity * SETTINGS.cohesion.sensitivity;
+        const sensitivity =
+            SETTINGS.getGlobalSetting(ExternalSettingNames.sensitivity) *
+            SETTINGS.getSetting(SettingSection.cohesion, ExternalSettingNames.sensitivity);
 
         const centroid = this.psys.getParticleClusterCentroid(particleId);
 
@@ -198,6 +209,8 @@ export class BoidSystem implements GameObject<BoidSystem> {
 
     getInitalStateData = () => this.psys.getInitialStateData();
 
+    getStartTime = () => this.startTime ?? Date();
+
     setCenterOfAttraction = (id: string, p: Vector3) => {
         this.centersOfAttraction[id] = p.clone();
     };
@@ -225,6 +238,8 @@ export class BoidSystem implements GameObject<BoidSystem> {
     };
 
     update = (elapsed: number, tick: number) => {
+        if (!this.startTime) this.startTime = Date();
+
         this.psys.update(elapsed, tick);
         const particleIds = this.psys.getParticleIds();
         const speed = this.psys.getSpeed();
@@ -327,6 +342,8 @@ export class BoidSystem implements GameObject<BoidSystem> {
         this.psys.dispose();
 
         this.psys = new ParticleSystem(scene, options);
+
+        this.startTime = null;
     };
 
     dispose = () => {

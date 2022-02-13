@@ -22,7 +22,7 @@ import {
 } from './ParticleSystemTypes';
 import { Dimensions, GameObject } from '../types';
 import { PARAMETERS } from '../Settings/Parameters';
-import { SETTINGS } from '../Settings/Settings';
+import { SETTINGS, ExternalSettingNames, InternalSettingNames } from '../Settings/Settings';
 
 import { Shaders, Shader } from '../gl/shaders';
 import { SpatialPartitioning } from '../SpatialPartitioning/SpatialPartitioning';
@@ -86,8 +86,8 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.spatialPartitioning = this.setupSpatialPartitioning();
 
-        const awareness = this.calcScaledParticlePerception(SETTINGS.global.perception);
-        const attentiveness = SETTINGS.global.attentiveness;
+        const awareness = this.calcScaledParticlePerception(SETTINGS.getGlobalSetting(ExternalSettingNames.perception));
+        const attentiveness = SETTINGS.getGlobalSetting(ExternalSettingNames.attentiveness);
         this.neighborManager = new NeighborManager(this.spatialPartitioning, awareness, attentiveness);
 
         if (!options.initialState && PARAMETERS.ParticleSystem.generateClusters) {
@@ -136,7 +136,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
             [Attributes.position]: {
                 count: 3,
                 value:
-                    SETTINGS.global.dimensions === Dimensions.xyz
+                    SETTINGS.getGlobalSetting(InternalSettingNames.dimensions) === Dimensions.xyz
                         ? PARAMETERS.ParticleSystem.boidShape === BoidShape.SPHERE
                             ? new Float32Array(Sphere(8, 0.25))
                             : PARAMETERS.ParticleSystem.boidShape === BoidShape.CONE
@@ -195,7 +195,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
                 const v = new Vector3().randomDirection().multiplyScalar(this.speed);
 
                 for (let dim = 0; dim < aPosition.count; dim++) {
-                    if (dim === SETTINGS.global.dimensions) continue;
+                    if (dim === SETTINGS.getGlobalSetting(InternalSettingNames.dimensions)) continue;
 
                     aPosition.value[i * aPosition.count + dim] = randInRange(this.lowerBoundary, this.upperBoundary);
                     aVelocity.value[i * aVelocity.count + dim] = v.getComponent(dim);
@@ -236,7 +236,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
             const p = new Array(dimensions).fill(0);
             for (let dim = 0; dim < dimensions; dim++) {
-                if (dim === SETTINGS.global.dimensions) continue;
+                if (dim === SETTINGS.getGlobalSetting(InternalSettingNames.dimensions)) continue;
 
                 p[dim] = randInRange(
                     Math.max(this.lowerBoundary, clusterCenter.getComponent(dim) - clusterSize),
@@ -294,7 +294,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
     getIAttributes = () => this.iattributes;
 
-    getInitialStateData = () => JSON.stringify(this.INITIAL_STATE);
+    getInitialStateData = () => ({ ...this.INITIAL_STATE });
 
     getShader = () => this.shader;
 

@@ -1,5 +1,7 @@
 import { Vector3 } from 'three';
 
+import { SettingEvent } from '../Settings/Settings';
+
 export type ParticleId = number;
 
 export type Force = { name: string; val: Vector3 };
@@ -44,4 +46,9 @@ export type InitialState = {
     [IAttributes.aPindex]: ParticleId[];
     [IAttributes.aPosition]: number[];
     [IAttributes.aVelocity]: number[];
+};
+
+export type ParticleSystemSimulationData = {
+    settingsEvents: SettingEvent[];
+    initialState: InitialState;
 };

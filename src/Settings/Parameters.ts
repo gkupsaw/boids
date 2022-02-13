@@ -1,5 +1,5 @@
 import { VizMode } from '../SpatialPartitioning/SpatialPartitioningTypes';
-import { SETTINGS } from './Settings';
+import { SETTINGS, ExternalSettingNames } from './Settings';
 import { BoidShape } from '../ParticleSystem/ParticleSystemTypes';
 
 // Different from settings, these values should never change over the course of a program run.
@@ -17,7 +17,7 @@ export const PARAMETERS = {
             count: 4000,
             particleSize: 0.08,
             get speed() {
-                return SETTINGS.global.speed;
+                return SETTINGS.getGlobalSetting(ExternalSettingNames.speed);
             },
         },
 

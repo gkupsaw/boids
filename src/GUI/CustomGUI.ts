@@ -1,10 +1,11 @@
 import { GUI } from 'dat.gui';
 import { Color } from 'three';
 
-import { SETTINGS, SettingSection, isInternalSetting, ExternalSettingsNames } from '../Settings/Settings';
+import { SETTINGS, SettingSection, ExternalSettingNames } from '../Settings/Settings';
 import { ThreeGame } from '../ThreeGame/ThreeGame';
 import { BoidSystem } from '../BoidSystem/BoidSystem';
-import { InitialState } from '../ParticleSystem/ParticleSystemTypes';
+import { InitialState, ParticleSystemSimulationData } from '../ParticleSystem/ParticleSystemTypes';
+import { FileProcessor } from './FileProcessor';
 
 export class CustomGUI {
     private gui!: GUI;
@@ -13,57 +14,44 @@ export class CustomGUI {
         this.initialize(game, bsys);
     }
 
-    downloadTextAsJson(exportObj: {}, exportName: string) {
-        const a = document.createElement('a');
-        const jsonString = JSON.stringify(exportObj);
-        const formattedJsonString = jsonString.slice(1, jsonString.length - 1).replace(/\\"/g, '"');
-        const dataURL = `data:application/json,${formattedJsonString}`;
+    formatParticleSystemSimData = (bsys: BoidSystem): ParticleSystemSimulationData => {
+        return {
+            settingsEvents: SETTINGS.getEventsAfterTimestamp(bsys.getStartTime()),
+            initialState: bsys.getInitalStateData(),
+        };
+    };
 
-        a.setAttribute('download', exportName + '.json');
-        a.setAttribute('href', dataURL);
+    processRawParticleSystemSimData = (rawParticleSystemSimData: string) => {
+        const parsedParticleSystemSimData = JSON.parse(rawParticleSystemSimData || '{}');
+        const parsedInitialState = parsedParticleSystemSimData.initialState;
+        const parsedSettingsEvents = parsedParticleSystemSimData.settingsEvents;
 
-        a.click();
-    }
+        const initialState: InitialState = { aPindex: [], aPosition: [], aVelocity: [] };
+        const particleSystemSimData: ParticleSystemSimulationData = {
+            initialState,
+            settingsEvents: parsedSettingsEvents,
+        };
 
-    async uploadJsonFile(): Promise<InitialState> {
-        return new Promise((resolve, reject) => {
-            const input = document.createElement('input');
-            input.setAttribute('id', 'file-input');
-            input.setAttribute('type', 'file');
-            input.onchange = () => {
-                const selectedFile = input.files ? input.files[0] : null;
+        const missingSimDataKey = Object.keys(particleSystemSimData).find(
+            (k) => !parsedParticleSystemSimData.initialState[k]
+        );
 
-                if (selectedFile) {
-                    const reader = new FileReader();
-                    reader.readAsText(selectedFile, 'UTF-8');
-                    reader.onload = function (evt) {
-                        const initialStateData = JSON.parse(evt.target?.result?.toString() || '{}');
-                        const initalState: InitialState = { aPindex: [], aPosition: [], aVelocity: [] };
+        if (missingSimDataKey) {
+            throw new Error(`Ill-formatted initial state (missing ${missingSimDataKey} key)`);
+        }
 
-                        if (!evt.target?.result) {
-                            return reject('File was empty');
-                        }
+        const missingInitialStateKey = Object.keys(initialState).find((k) => !parsedInitialState[k]);
 
-                        const missingValueName = Object.keys(initalState).find((k) => !initialStateData[k]);
+        if (missingInitialStateKey) {
+            throw new Error(`Ill-formatted initial state (missing ${missingInitialStateKey} key)`);
+        }
 
-                        if (missingValueName) {
-                            return reject(`Ill-formatted initial state (missing ${missingValueName} key)`);
-                        }
+        initialState.aPindex = parsedInitialState.aPindex;
+        initialState.aPosition = parsedInitialState.aPosition;
+        initialState.aVelocity = parsedInitialState.aVelocity;
 
-                        initalState.aPindex = initialStateData.aPindex;
-                        initalState.aPosition = initialStateData.aPosition;
-                        initalState.aVelocity = initialStateData.aVelocity;
-                        resolve(initalState);
-                    };
-                    reader.onerror = function (evt) {
-                        reject('Error reading uploaded file');
-                    };
-                }
-            };
-            input.click();
-            input.remove();
-        });
-    }
+        return particleSystemSimData;
+    };
 
     initialize = (game: ThreeGame, bsys: BoidSystem) => {
         this.gui = new GUI();
@@ -77,8 +65,8 @@ export class CustomGUI {
         initialStateFolder.add(dummy, saveMsg).onChange(() => {
             dummy[saveMsg] = false;
             const d = new Date();
-            this.downloadTextAsJson(
-                bsys.getInitalStateData(),
+            FileProcessor.downloadTextAsJson(
+                this.formatParticleSystemSimData(bsys),
                 'bsys_init_state_' +
                     d.toLocaleDateString() +
                     ':' +
@@ -89,13 +77,17 @@ export class CustomGUI {
         });
         initialStateFolder.add(dummy, loadMsg).onChange(async () => {
             dummy[loadMsg] = false;
-            await this.uploadJsonFile()
+            await FileProcessor.uploadJsonFile()
                 .catch((e) => console.error(e))
-                .then((initialStateData) => initialStateData && bsys.restart(initialStateData));
+                .then(
+                    (rawParticleSystemSimData) =>
+                        rawParticleSystemSimData &&
+                        bsys.restart(this.processRawParticleSystemSimData(rawParticleSystemSimData).initialState)
+                );
         });
         initialStateFolder.add(dummy, restartMsg).onChange(async () => {
             dummy[restartMsg] = false;
-            bsys.restart(JSON.parse(bsys.getInitalStateData()));
+            bsys.restart(bsys.getInitalStateData());
         });
         initialStateFolder.add(dummy, regenerateMsg).onChange(async () => {
             dummy[regenerateMsg] = false;
@@ -103,40 +95,58 @@ export class CustomGUI {
         });
         initialStateFolder.open();
 
-        Object.values(SettingSection).forEach((section) => {
-            const folder = this.gui.addFolder(section.slice(0, 1).toUpperCase().concat(section.slice(1)));
-            Object.keys(SETTINGS[section]).forEach((setting) => {
-                if (!isInternalSetting(setting)) {
-                    switch (setting) {
-                        case ExternalSettingsNames.speed:
-                            folder.add(SETTINGS[section], setting, 0, 5).onChange((v) => bsys.setSpeed(v));
-                            break;
-                        case ExternalSettingsNames.is3D:
-                            folder.add(SETTINGS[section], setting, 0, 1).onChange(game.toggle3D);
-                            break;
-                        case ExternalSettingsNames.envColor:
-                            folder.addColor(SETTINGS[section], setting).onChange((hex: number) => {
-                                game.getScene().background = new Color(hex);
-                                game.getLights().forEach((l) => l.color.setHex(hex));
-                            });
-                            break;
-                        case ExternalSettingsNames.perception:
-                            folder
-                                .add(SETTINGS[section], setting, 0, 10, 1)
-                                .onChange((v) => bsys.setParticlePerception(v));
-                            break;
-                        case ExternalSettingsNames.attentiveness:
-                            folder
-                                .add(SETTINGS[section], setting, 0, 1, 0.01)
-                                .onChange((v) => bsys.setParticleAttentiveness(v));
-                            break;
-                        case ExternalSettingsNames.sensitivity:
-                            folder.add(SETTINGS[section], setting, 0, 1, 0.01);
-                            break;
-                        default:
-                            folder.add(SETTINGS[section], setting, 0, 1, 0.01);
-                            break;
-                    }
+        Object.values(SettingSection).forEach((sectionKey) => {
+            const folder = this.gui.addFolder(sectionKey.slice(0, 1).toUpperCase().concat(sectionKey.slice(1)));
+            const section = SETTINGS.getSectionCopy(sectionKey);
+
+            const sectionSettingKeys = new Set(Object.keys(section));
+            const validSectionSettingKeys = Object.values(ExternalSettingNames).filter((k) =>
+                sectionSettingKeys.has(k)
+            );
+
+            validSectionSettingKeys.forEach((settingKey) => {
+                switch (settingKey) {
+                    case ExternalSettingNames.speed:
+                        folder.add(section, settingKey, 0, 5).onChange((v) => {
+                            bsys.setSpeed(v);
+                            SETTINGS.setSetting(sectionKey, settingKey, v);
+                        });
+                        break;
+                    case ExternalSettingNames.is3D:
+                        folder.add(section, settingKey, 0, 1).onChange((v) => {
+                            game.toggle3D();
+                            SETTINGS.setSetting(sectionKey, settingKey, v);
+                        });
+                        break;
+                    case ExternalSettingNames.envColor:
+                        folder.addColor(section, settingKey).onChange((hex: number) => {
+                            game.getScene().background = new Color(hex);
+                            game.getLights().forEach((l) => l.color.setHex(hex));
+                            SETTINGS.setSetting(sectionKey, settingKey, hex);
+                        });
+                        break;
+                    case ExternalSettingNames.perception:
+                        folder.add(section, settingKey, 0, 10, 1).onChange((v) => {
+                            bsys.setParticlePerception(v);
+                            SETTINGS.setSetting(sectionKey, settingKey, v);
+                        });
+                        break;
+                    case ExternalSettingNames.attentiveness:
+                        folder.add(section, settingKey, 0, 1, 0.01).onChange((v) => {
+                            bsys.setParticleAttentiveness(v);
+                            SETTINGS.setSetting(sectionKey, settingKey, v);
+                        });
+                        break;
+                    case ExternalSettingNames.sensitivity:
+                        folder.add(section, settingKey, 0, 1, 0.01).onChange((v) => {
+                            SETTINGS.setSetting(sectionKey, settingKey, v);
+                        });
+                        break;
+                    default:
+                        folder.add(section, settingKey, 0, 1, 0.01).onChange((v) => {
+                            SETTINGS.setSetting(sectionKey, settingKey, v);
+                        });
+                        break;
                 }
             });
             folder.open();

@@ -11,7 +11,7 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import { EventSystem } from '../EventSystem/EventSystem';
-import { SETTINGS } from '../Settings/Settings';
+import { SETTINGS, SettingSection, ExternalSettingNames } from '../Settings/Settings';
 import { GameObject } from '../types/GameObject';
 import { CanvasUtils } from '../CanvasUtils/CanvasUtils';
 import { RendererStats, RendererStatsObject } from './debug/RendererStats';
@@ -29,7 +29,7 @@ export class ThreeGame {
     private camera!: PerspectiveCamera | OrthographicCamera;
     private readonly gameObjects: GameObject<any>[];
 
-    static readonly SKY_COLOR = SETTINGS.bean.envColor; //'#282c34';
+    static readonly SKY_COLOR = SETTINGS.getSetting(SettingSection.bean, ExternalSettingNames.envColor); //'#282c34';
 
     constructor() {
         this.id = `${Math.floor(Math.random() * 100000)}`;
@@ -90,7 +90,7 @@ export class ThreeGame {
     };
 
     private setupCamera = () => {
-        if (SETTINGS.global.is3D) {
+        if (SETTINGS.getGlobalSetting(ExternalSettingNames.is3D)) {
             this.camera = new PerspectiveCamera();
             this.camera.position.z += 2;
             this.controls = new OrbitControls(this.camera, this.renderer.domElement);
