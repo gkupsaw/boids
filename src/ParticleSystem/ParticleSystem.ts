@@ -86,7 +86,7 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         this.spatialPartitioning = this.setupSpatialPartitioning();
 
-        const awareness = this.getParticlePerception(SETTINGS.global.perception);
+        const awareness = this.calcScaledParticlePerception(SETTINGS.global.perception);
         const attentiveness = SETTINGS.global.attentiveness;
         this.neighborManager = new NeighborManager(this.spatialPartitioning, awareness, attentiveness);
 
@@ -96,10 +96,6 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
 
         scene.add(this.mesh);
     }
-
-    private getParticlePerception = (basePerception: number) => {
-        return basePerception * this.particleSize;
-    };
 
     private get lowerBoundary() {
         return -(this.size / 2 - this.particleSize / 2);
@@ -270,6 +266,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         this.setParticlePosition(particleId, p.add(v.multiplyScalar(tick)).toArray());
     };
 
+    private calcScaledParticlePerception = (basePerception: number) => {
+        return basePerception * this.particleSize;
+    };
+
     getSize = () => this.size;
 
     getCount = () => this.count;
@@ -281,8 +281,9 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
     setSpeed = (speed: number) => (this.speed = speed);
 
     setParticlePerception = (particlePerception: number) => {
-        this.viz.setParticlePerception(particlePerception);
-        this.neighborManager.setParticlePerception(particlePerception);
+        const scaledParticlePerception = this.calcScaledParticlePerception(particlePerception);
+        this.viz.setParticlePerception(scaledParticlePerception);
+        this.neighborManager.setParticlePerception(scaledParticlePerception);
     };
 
     setParticleAttentiveness = (particleAwareness: number) => {
