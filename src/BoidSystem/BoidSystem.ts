@@ -339,9 +339,15 @@ export class BoidSystem implements GameObject<BoidSystem> {
             initialState: initialStateData,
         };
 
+        const hasVisualization = this.psys.hasVisualization();
+
         this.psys.dispose();
 
         this.psys = new ParticleSystem(scene, options);
+
+        if (hasVisualization) {
+            this.withVisualization();
+        }
 
         this.startTime = null;
     };

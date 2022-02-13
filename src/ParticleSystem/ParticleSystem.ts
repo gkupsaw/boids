@@ -461,6 +461,10 @@ export class ParticleSystem implements GameObject<ParticleSystem> {
         }
     };
 
+    hasVisualization = () => {
+        return Boolean(this.viz);
+    };
+
     copy = () => {
         const scene = this.mesh.parent as Scene;
 
